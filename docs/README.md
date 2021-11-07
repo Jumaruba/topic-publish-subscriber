@@ -6,11 +6,18 @@ This project must be executed in unix environment, since the `zqm` does not supp
 
 ## Virtual environment 
 
-The user does not need to install any tools to run this project, this repository contains a python virtual environment with the necessary libraries installed.  
-To activate the python environment that is used in the project run the following command:  
+Make sure you have `python 3` and `pipenv` installed as a global dependecy.
+
+To install the dependencies (from `src/`):
 
 ```bash
-source ./zmq/bin/activate
+source pipenv install
+```
+
+To activate the python environment that is used in the project run the following command (from `src/`):
+
+```bash
+source pipenv shell
 ```
 
 ## Compilation
