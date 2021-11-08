@@ -1,6 +1,6 @@
 # SDLE Project
 
-SDLE Project for group T3G&lt;p&gt;&lt;q&gt;.
+SDLE Project for group T3G14.
 
 Group members:
 
