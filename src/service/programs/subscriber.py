@@ -3,7 +3,7 @@ from .client import Client
 
 class Subscriber(Client):
     def __init__(self):
-        Client.__init__(self)
+        super().__init__()
 
     def get(self, topic: str) -> None:
         pass
