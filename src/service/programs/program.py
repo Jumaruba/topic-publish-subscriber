@@ -1,7 +1,9 @@
+from abc import ABC, abstractmethod
+
 import zmq
 
 
-class Program:
+class Program(ABC):
     def __init__(self) -> None:
         self.context = zmq.Context()
         self.sockets = {}
@@ -11,3 +13,7 @@ class Program:
         new_socket.connect("tcp://" + address)
         self.sockets[name] = new_socket
         return self.sockets[name]
+
+    @abstractmethod
+    def run(self):
+        pass

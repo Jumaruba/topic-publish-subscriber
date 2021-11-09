@@ -13,3 +13,6 @@ class Subscriber(Client):
 
     def unsubscribe(self, topic: str) -> None:
         pass
+
+    def run(self):
+        pass

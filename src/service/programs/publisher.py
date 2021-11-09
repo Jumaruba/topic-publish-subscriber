@@ -7,3 +7,6 @@ class Publisher(Client):
 
     def put(self, topic: str) -> None:
         pass
+
+    def run(self):
+        pass
