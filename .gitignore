@@ -1,2 +1,6 @@
-zmq
+# Programming Environment
+.idea
+.vscode
 **/__pycache__
+
+zmq
