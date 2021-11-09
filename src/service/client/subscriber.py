@@ -1,5 +1,6 @@
 from .client import Client
 
+
 class Subscriber(Client):
     def __init__(self):
         Client.__init__(self)
