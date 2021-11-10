@@ -18,7 +18,7 @@ class Subscriber(Client):
         pass
 
     def run(self):
-        socket = self.create_socket(zmq.SUB, SocketCreationFunction.CONNECT, 'localhost:5556')
+        socket = self.create_socket(zmq.SUB, SocketCreationFunction.CONNECT, 'localhost:5557')
         socket.setsockopt_string(zmq.SUBSCRIBE, "10001")
 
         total_temperature = 0

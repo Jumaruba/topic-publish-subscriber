@@ -5,7 +5,7 @@ from enum import Enum
 
 import zmq
 from zmq.backend import Socket
-
+from .excpt.create_socket import CreateSocket
 
 class SocketCreationFunction(Enum):
     CONNECT = 0
@@ -23,7 +23,7 @@ class Program(ABC):
         elif function == SocketCreationFunction.BIND:
             new_socket.bind("tcp://" + address)
         else:
-            return None
+            raise CreateSocket()
         return new_socket
 
     @abstractmethod

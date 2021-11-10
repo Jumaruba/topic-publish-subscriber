@@ -14,10 +14,10 @@ class Publisher(Client):
         pass
 
     def run(self):
-        socket = self.create_socket(zmq.PUB, SocketCreationFunction.BIND, '*:5556')
+        socket = self.create_socket(zmq.PUB, SocketCreationFunction.CONNECT, 'localhost:5556')
 
         while True:
-            zipcode = randrange(1, 100000)
+            zipcode = randrange(0, 100000)
             temperature = randrange(-80, 135)
             relative_humidity = randrange(10, 60)
 
