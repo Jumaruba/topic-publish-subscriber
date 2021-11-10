@@ -1,4 +1,9 @@
+from random import randrange
+
+import zmq
+
 from .client import Client
+from .program import SocketCreationFunction
 
 
 class Publisher(Client):
@@ -9,4 +14,11 @@ class Publisher(Client):
         pass
 
     def run(self):
-        pass
+        socket = self.create_socket(zmq.PUB, SocketCreationFunction.BIND, '*:5556')
+
+        while True:
+            zipcode = randrange(1, 100000)
+            temperature = randrange(-80, 135)
+            relative_humidity = randrange(10, 60)
+
+            socket.send_string(f"{zipcode} {temperature} {relative_humidity}")
