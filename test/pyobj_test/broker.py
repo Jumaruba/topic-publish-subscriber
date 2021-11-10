@@ -1,13 +1,13 @@
 import zmq
 from zmq.sugar.constants import POLLIN
-import codecs
-from message_type import TypeMessage 
-
+from message_type import TypeMessage
+from acknowledgement import Acknowledgement
+from subscription import Subscription 
 
 context = zmq.Context()
 
 # For the backend to publish
-backend = context.socket(zmq.XSUB)
+backend = context.socket(zmq.XSUB) 
 backend.bind("tcp://*:5557")
 
 # For the frontend to subscribe
@@ -18,7 +18,6 @@ frontend.bind("tcp://*:5558")
 poller = zmq.Poller()
 poller.register(backend, zmq.POLLIN)
 poller.register(frontend, zmq.POLLIN)
-
 
 while True:
     socks = dict(poller.poll())
@@ -34,26 +33,10 @@ while True:
         frontend.send_string(f"{zipcode} {temp} {message_id}")
 
     if socks.get(frontend) == zmq.POLLIN:
-        #total = frontend.recv()
-        #total = [frontend.recv_# string()]
-        # while frontend.getsoc# kopt(zmq.RCVMORE):
-        #     total.append(fronte#nd.recv_string())
+        msg = frontend.recv_pyobj()
 
-        #print(len(total))
-        #total = frontend.recv()
-        #print(total)
-       
-        msg = frontend.recv_multipart()
-        msg_type = msg[0][:1]
-
-        if msg_type == TypeMessage.ID:
-            # ID
-            print("[ID]", msg)
-        elif msg_type == TypeMessage.ACK:
-            # ACK
-            print("[ACK]", msg) 
+        if isinstance(msg, Acknowledgement):
+            print("[ACK]", msg)
         else:
-            # Unsubscribe or Subscribe
-            backend.send_multipart(msg)
+            backend.send_string(msg)
             print("[SUB/UNSUB]", msg)
-                
