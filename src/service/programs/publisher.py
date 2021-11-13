@@ -42,6 +42,9 @@ class Publisher(Client):
 
     def run(self) -> None: 
         msg_id = 0
+
+        ## TODO check if socket is connected before starting to send messages
+        
         while True:  
             content = random.randint(10, 1000)
             self.put(self.topic, msg_id, str(content))
