@@ -27,13 +27,13 @@ def get_program(type_of_program: str) -> Program | None:
 
 
 if __name__ == '__main__':
-    "<program path> <client|server>"
+    "<program path> <subscriber|publisher|server>"
 
-    if len(sys.argv) < 2:
-        print_error("Invalid number of arguments")
+    if len(sys.argv) < 2:  
+        print_error("Invalid number of arguments, expected: <server|subscriber|publisher>")  
 
-    program = get_program(sys.argv[1])
+    program = get_program(sys.argv[1]) 
     if program is None:
-        print_error("The second argument must be 'server', 'publisher' or 'subscriber'")
+        print_error("The argument must be 'server', 'publisher' or 'subscriber'")
 
     program.run()
