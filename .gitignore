@@ -3,4 +3,7 @@
 .vscode
 **/__pycache__
 
+# Temporary files
+**/*.bin
+
 zmq

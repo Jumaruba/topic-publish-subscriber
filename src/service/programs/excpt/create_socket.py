@@ -1,0 +1,2 @@
+class CreateSocket(Exception):
+    pass

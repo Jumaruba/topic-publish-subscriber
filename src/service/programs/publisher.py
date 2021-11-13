@@ -1,24 +1,51 @@
-from random import randrange
+import random
+import time
 
 import zmq
+from zmq.sugar.socket import Socket
+
+from .log.logger import Logger
 
 from .client import Client
 from .program import SocketCreationFunction
 
 
 class Publisher(Client):
-    def __init__(self):
-        super().__init__()
 
-    def put(self, topic: str) -> None:
-        pass
+    # --------------------------------------------------------------------------
+    # Attributes
+    # --------------------------------------------------------------------------
 
-    def run(self):
-        socket = self.create_socket(zmq.PUB, SocketCreationFunction.BIND, '*:5556')
+    publisher: zmq.Socket
+    topic: str
 
-        while True:
-            zipcode = randrange(1, 100000)
-            temperature = randrange(-80, 135)
-            relative_humidity = randrange(10, 60)
+    # --------------------------------------------------------------------------
+    # Initialization of publisher
+    # --------------------------------------------------------------------------
 
-            socket.send_string(f"{zipcode} {temperature} {relative_humidity}")
+    def __init__(self) -> None:
+        super().__init__() 
+        self.init_sockets()
+        self.topic = "sdle" # to change, receive multiple topics
+
+    def init_sockets(self) -> None:
+        self.publisher = self.create_socket(zmq.PUB, SocketCreationFunction.CONNECT, 'localhost:5556')
+
+    def put(self, topic: str, msg_id: int, content: str) -> None:
+        self.publisher.send_multipart([self.topic.encode('utf-8'), str(content).encode('utf-8'), str(msg_id).encode('utf-8')])
+        
+        Logger.topic_message(topic, msg_id, content)
+    
+    # --------------------------------------------------------------------------
+    # Main function of publisher
+    # --------------------------------------------------------------------------
+
+    def run(self) -> None: 
+        msg_id = 0
+        while True:  
+            content = random.randint(10, 1000)
+            self.put(self.topic, msg_id, str(content))
+
+            time.sleep(2)
+
+            msg_id += 1
