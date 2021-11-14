@@ -4,6 +4,7 @@
 **/__pycache__
 
 # Temporary files
-**/*.bin
+**/.DS_Store
+*.bin
 
 zmq
