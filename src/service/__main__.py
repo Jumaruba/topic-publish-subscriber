@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import sys
 
-from .programs.program import Program
-from .programs.publisher import Publisher
-from .programs.server import Server
-from .programs.subscriber import Subscriber
+from programs.program import Program
+from programs.publisher import Publisher
+from programs.server import Server
+from programs.subscriber import Subscriber
 
 
 def print_error(message: str):

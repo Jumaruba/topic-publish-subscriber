@@ -42,13 +42,14 @@ class Subscriber(Client):
         self.messages_received[self.topic] = {}
 
     def create_sockets(self) -> None:
-        self.subscriber = self.create_socket(
-            zmq.XSUB, SocketCreationFunction.CONNECT, 'localhost:5557')
-        self.dealer = self.create_socket(
-            zmq.DEALER, SocketCreationFunction.CONNECT, 'localhost:5554')
+        self.subscriber = self.context.socket(zmq.XSUB)
+        self.subscriber.connect("tcp://localhost:5557")
+
         # TODO id to be generated in __init__ or retreieved from persistent data
-        self.dealer.setsockopt_string(
-            zmq.IDENTITY, str(random.randint(0, 8000)))
+        self.dealer = self.context.socket(zmq.DEALER)
+        self.dealer.setsockopt_string(zmq.IDENTITY, str(random.randint(0, 8000))) 
+        self.dealer.connect("tcp://localhost:5554")
+
 
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
@@ -93,6 +94,7 @@ class Subscriber(Client):
         data_persitence_file = open(self.data_path, "wb")
         pickle.dump(self.messages_received, data_persitence_file)
         data_persitence_file.close()
+
 
     def recv_status(self) -> None:
         """
