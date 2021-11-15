@@ -125,14 +125,13 @@ class Server(Program):
         self.frontend.send_multipart(message)
 
     def handle_dealer(self) -> None:
-        identity = self.router.recv()
-        message_type, topic, *message_id = MessageParser.decode(
-            self.router.recv_multipart())
+        identity, message_type, topic, *message_id = MessageParser.decode(self.router.recv_multipart())
 
         if message_type == "GET":
             self.handle_get(identity, topic)
         if message_type == "ACK":
             self.handle_acknowledgement(identity, message_id, topic)
+
 
     def handle_get(self, client_id: int, topic: str) -> None:
         Logger.get(client_id, topic)
@@ -140,9 +139,9 @@ class Server(Program):
         # TODO fetch message from local data sctructure
         #to_send = MessageParser.encode([client_id, topic, msg_id, msg_content])
 
-        to_send = [client_id] + \
-            MessageParser.encode([topic, 2, "test message"])
+        to_send = MessageParser.encode([client_id, topic, 2, "test message"])
         self.router.send_multipart(to_send)
+
 
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
         Logger.ack(client_id, topic, message_id)
