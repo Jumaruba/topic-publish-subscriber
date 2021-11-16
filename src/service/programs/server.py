@@ -125,37 +125,22 @@ class Server(Program):
         self.frontend.send_multipart(message)
 
     def handle_dealer(self) -> None:
-<<<<<<< Updated upstream
-        identity, message_type, topic, *message_id = MessageParser.decode(self.router.recv_multipart())
-=======
-        header = self.router.recv()
-        message_type, identity,  topic, *message_id = MessageParser.decode(
-            self.router.recv_multipart())
->>>>>>> Stashed changes
+        identity, message_type, topic, * \
+            message_id = MessageParser.decode(self.router.recv_multipart())
 
         if message_type == "GET":
             self.handle_get(header, identity, topic)
         if message_type == "ACK":
             self.handle_acknowledgement(identity, message_id, topic)
 
-<<<<<<< Updated upstream
-
     def handle_get(self, client_id: int, topic: str) -> None:
-=======
-    def handle_get(self, header: str, client_id: int, topic: str) -> None:
->>>>>>> Stashed changes
         Logger.get(client_id, topic)
 
         # TODO fetch message from local data sctructure
         # to_send = MessageParser.encode([topic, msg_id, msg_content])
 
-<<<<<<< Updated upstream
         to_send = MessageParser.encode([client_id, topic, 2, "test message"])
-=======
-        to_send = [header] + MessageParser.encode([topic, 2, "test message"])
->>>>>>> Stashed changes
         self.router.send_multipart(to_send)
-
 
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
         Logger.ack(client_id, topic, message_id)
