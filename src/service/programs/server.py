@@ -8,7 +8,7 @@ from .program import Program
 from .log.logger import Logger
 from .excpt.create_socket import CreateSocket
 from .message.message_parser import MessageParser
-
+from typing import List
 
 class Server(Program):
 
@@ -125,13 +125,18 @@ class Server(Program):
         self.frontend.send_multipart(message)
 
     def handle_dealer(self) -> None:
-        identity, message_type, topic, * \
-            message_id = MessageParser.decode(self.router.recv_multipart())
+        message = MessageParser.decode(self.router.recv_multipart())
+        identity = message[0]
+        message_type = message[1]
 
         if message_type == "GET":
-            self.handle_get(identity, topic)
-        if message_type == "ACK":
+            self.handle_get(identity, topic = message[2])
+        elif message_type == "ACK":
+            message_id = message[3]
+            topic = message[2]
             self.handle_acknowledgement(identity, message_id, topic)
+        elif message_type == "CRASH":
+            self.handle_crash(identity, message[2:])
 
     def handle_get(self, client_id: int, topic: str) -> None:
         Logger.get(client_id, topic)
@@ -153,6 +158,20 @@ class Server(Program):
         # else:
         #     pass
             # TODO deal with mismatch message id in ACK (if we choose to do this other than re-send when no ACK is received)
+    
+    def handle_crash(self, identity: int, subscriber_state: List[str]): 
+        for i in range(0, len(subscriber_state), 2): 
+            topic = subscriber_state[i] 
+            last_client = subscriber_state[i+1]
+
+            # Get lost messages.  
+            topic_messages = self.topic_dict[topic] 
+            for msg_id in topic_messages.keys():
+                if int(msg_id) > last_client:   
+                    content = self.topic_dict[topic][msg_id]
+                    to_send = MessageParser.encode([identity, topic, msg_id, content])  
+                    Logger.put_message(to_send)
+                    self.router.send_multipart(to_send)
 
     # --------------------------------------------------------------------------
     # Main function of server

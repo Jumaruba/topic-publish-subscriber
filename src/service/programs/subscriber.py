@@ -35,10 +35,10 @@ class Subscriber(Client):
         self.data_path = os.path.join(current_path, persistent_data_path)
         self.client_id = client_id 
 
-        self.get_state()
         self.create_sockets()
         self.create_poller()
         self.get_topics(topics_json)
+        self.get_state() 
 
         self.messages_received = {}
         self.subscribe_topics()
@@ -53,8 +53,10 @@ class Subscriber(Client):
 
     def handle_crash(self, state: dict):  
         message = ["CRASH"]
-        for topic in state.items():
-            pass
+        for topic, msg_id in state.items(): 
+            message.append(topic)
+            message.append(msg_id)  
+        print(message)
         self.dealer.send_multipart(MessageParser.encode(message))
     
     def delete_state(self):
