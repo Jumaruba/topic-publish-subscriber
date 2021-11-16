@@ -49,7 +49,7 @@ class Subscriber(Client):
         self.client_id = str(random.randint(0, 8000))
         self.dealer = self.context.socket(zmq.DEALER)
         self.dealer.setsockopt_string(
-            zmq.IDENTITY, str(random.randint(0, 8000)))
+            zmq.IDENTITY, self.client_id)
         self.dealer.connect("tcp://localhost:5554")
 
     def create_poller(self) -> None:
