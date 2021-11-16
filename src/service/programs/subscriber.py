@@ -2,6 +2,7 @@ import os
 import zmq
 import pickle
 import random
+from time import sleep
 import json
 
 from .log.logger import Logger
@@ -46,7 +47,7 @@ class Subscriber(Client):
 
         # TODO id to be generated in __init__ or retreieved from persistent data
         self.dealer = self.context.socket(zmq.DEALER)
-        self.dealer.setsockopt_string(zmq.IDENTITY, str(random.randint(0, 8000))) 
+        self.dealer.setsockopt_string(zmq.IDENTITY, str(random.randint(0, 8000)))
         self.dealer.connect("tcp://localhost:5554")
 
 
@@ -119,8 +120,9 @@ class Subscriber(Client):
     # --------------------------------------------------------------------------
 
     def run(self):
-        
-        for i in range(5):
+
+        while True:
+            sleep(5)
             # Get random subscribed topic
             topic_idx = random.randint(0, len(self.topics)-1)
             topic = self.topics[topic_idx]

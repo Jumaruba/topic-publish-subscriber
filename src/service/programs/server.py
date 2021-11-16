@@ -24,8 +24,7 @@ class Server(Program):
 
     # Dictionaries
     topic_dict: dict    # topic_dict[<topic>][<message id>] = message
-    # client_dict[<client id>][<topic>] = last message received
-    client_dict: dict
+    client_dict: dict   # client_dict[<client id>][<topic>] = last message received
 
     # --------------------------------------------------------------------------
     # Initialization of server
@@ -58,12 +57,22 @@ class Server(Program):
 
     def last_message_of_topic(self, topic: str) -> int:
         """
-        Returns the id of the last message of the topic that was received 
+        Returns the id of the last message of the topic that was received
         from a publisher
         """
         if len(self.topic_dict[topic]) == 0:
             return -1
-        return self.topic_dict[topic].keys()[-1]
+        return next(iter(self.topic_dict[topic].keys()))
+
+    def message_for_client(self, client_id: int, topic: str) -> list:
+        """
+        Returns the next message that needs to be send to the client,
+        in the following format: [client_id, topic, msg_id, msg_content]
+        """
+        last_message_id = self.client_dict[client_id][topic]
+        next_message_id = last_message_id + 1
+        next_message = topic_dict[topic][next_message_id]
+        return [client_id, topic, next_message_id, next_message]
 
     def add_topic(self, topic: str) -> None:
         """
@@ -99,12 +108,12 @@ class Server(Program):
         self.client_dict[client_id][topic] = self.last_message_of_topic()
 
     # --------------------------------------------------------------------------
-    # Handlers of messages
+    # Handling of messages
     # --------------------------------------------------------------------------
 
     def handle_subscription(self) -> None:
         """
-        Reads the message from the frontend socket, forwards it to the 
+        Reads the message from the frontend socket, forwards it to the
         publishers and adds the new subscription to the data structures
         """
         message = self.frontend.recv_multipart()
@@ -115,14 +124,12 @@ class Server(Program):
     def handle_publication(self) -> None:
         """
         Reads the message from the backend socket, created a new id for it,
-        sends it to the subscribers and adds the new message to the data 
-        structures 
+        sends it to the subscribers and adds the new message to the data
+        structures
         """
         message = self.backend.recv_multipart()
         Logger.backend(message)
-        # TODO: new_id = add_message()
-        # TODO: create new message to send to client
-        self.frontend.send_multipart(message)
+        self.add_message(str(message[0]), str(message[1]))
 
     def handle_dealer(self) -> None:
         identity, message_type, topic, *message_id = MessageParser.decode(self.router.recv_multipart())
@@ -132,16 +139,11 @@ class Server(Program):
         if message_type == "ACK":
             self.handle_acknowledgement(identity, message_id, topic)
 
-
     def handle_get(self, client_id: int, topic: str) -> None:
         Logger.get(client_id, topic)
-
-        # TODO fetch message from local data sctructure
-        #to_send = MessageParser.encode([client_id, topic, msg_id, msg_content])
-
-        to_send = MessageParser.encode([client_id, topic, 2, "test message"])
-        self.router.send_multipart(to_send)
-
+        # TODO: verify if client exists and is subscribed
+        message = self.message_for_client(client_id, topic)
+        self.router.send_multipart(MessageParser.encode(message))
 
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
         Logger.ack(client_id, topic, message_id)

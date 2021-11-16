@@ -4,13 +4,13 @@ class MessageParser:
         pass
 
     @staticmethod
-    def encode(messages): 
+    def encode(messages):
         for i in range(len(messages)):
-            messages[i] = str(messages[i]).encode('utf-8') 
+            messages[i] = str(messages[i]).encode('utf-8')
         return messages
 
     @staticmethod
-    def decode(messages): 
+    def decode(messages):
         print(messages)
         for i in range(len(messages)):
             messages[i] = messages[i].decode('utf-8')
