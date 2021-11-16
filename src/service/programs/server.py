@@ -58,7 +58,7 @@ class Server(Program):
 
     def last_message_of_topic(self, topic: str) -> int:
         """
-        Returns the id of the last message of the topic that was received 
+        Returns the id of the last message of the topic that was received
         from a publisher
         """
         if len(self.topic_dict[topic]) == 0:
@@ -104,7 +104,7 @@ class Server(Program):
 
     def handle_subscription(self) -> None:
         """
-        Reads the message from the frontend socket, forwards it to the 
+        Reads the message from the frontend socket, forwards it to the
         publishers and adds the new subscription to the data structures
         """
         message = self.frontend.recv_multipart()
@@ -115,8 +115,8 @@ class Server(Program):
     def handle_publication(self) -> None:
         """
         Reads the message from the backend socket, created a new id for it,
-        sends it to the subscribers and adds the new message to the data 
-        structures 
+        sends it to the subscribers and adds the new message to the data
+        structures
         """
         message = self.backend.recv_multipart()
         Logger.backend(message)
@@ -125,31 +125,49 @@ class Server(Program):
         self.frontend.send_multipart(message)
 
     def handle_dealer(self) -> None:
+<<<<<<< Updated upstream
         identity, message_type, topic, *message_id = MessageParser.decode(self.router.recv_multipart())
+=======
+        header = self.router.recv()
+        message_type, identity,  topic, *message_id = MessageParser.decode(
+            self.router.recv_multipart())
+>>>>>>> Stashed changes
 
         if message_type == "GET":
-            self.handle_get(identity, topic)
+            self.handle_get(header, identity, topic)
         if message_type == "ACK":
             self.handle_acknowledgement(identity, message_id, topic)
 
+<<<<<<< Updated upstream
 
     def handle_get(self, client_id: int, topic: str) -> None:
+=======
+    def handle_get(self, header: str, client_id: int, topic: str) -> None:
+>>>>>>> Stashed changes
         Logger.get(client_id, topic)
 
         # TODO fetch message from local data sctructure
-        #to_send = MessageParser.encode([client_id, topic, msg_id, msg_content])
+        # to_send = MessageParser.encode([topic, msg_id, msg_content])
 
+<<<<<<< Updated upstream
         to_send = MessageParser.encode([client_id, topic, 2, "test message"])
+=======
+        to_send = [header] + MessageParser.encode([topic, 2, "test message"])
+>>>>>>> Stashed changes
         self.router.send_multipart(to_send)
 
 
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
         Logger.ack(client_id, topic, message_id)
 
-        # print(type)
-        # if type == b'ACK':
-        #     print(f"[STATUS] {identity} :: {topic}-{message_id}")
-        #     socket_ack.send_multipart([identity, b"Received"])
+        print(f'CLIENT ID - {client_id}')
+
+        current_pointer = self.client_dict[client_id][topic]
+        if message_id == (current_pointer + 1):
+            self.client_dict[client_id][topic] = message_id
+        else:
+            pass
+            # TODO deal with mismatch message id in ACK (if we choose to do this other than re-send when no ACK is received)
 
     # --------------------------------------------------------------------------
     # Main function of server
