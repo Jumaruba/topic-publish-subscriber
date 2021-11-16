@@ -20,14 +20,11 @@ def get_program(args: list) -> Program | None:
 
     if type_of_program == 'server':
         return Server()
-    
-    if len(args) < 2:
-        return None
 
-    if type_of_program == 'publisher':
+    if type_of_program == 'publisher' and len(args) == 2:
         return Publisher(args[1])
-    elif type_of_program == 'subscriber':
-        return Subscriber(args[1])
+    elif type_of_program == 'subscriber' and len(args) == 3:
+        return Subscriber(args[1], args[2])
     else:
         return None
 
@@ -36,10 +33,10 @@ if __name__ == '__main__':
     "<program path> <subscriber|publisher|server>"
 
     if len(sys.argv) < 2:  
-        print_error("Invalid number of arguments, expected: server | subscriber <messages> | publisher <topics>")  
+        print_error("Invalid number of arguments, expected: server | subscriber <messages> <id>| publisher <topics>")  
 
     program = get_program(sys.argv[1:]) 
     if program is None:
-        print_error("Invalid number of arguments, expected: server | subscriber <messages> | publisher <topics>")
+        print_error("Invalid number of arguments, expected: server | subscriber <messages> <id>| publisher <topics>")
 
     program.run()

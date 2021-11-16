@@ -129,7 +129,7 @@ class Server(Program):
             message_id = MessageParser.decode(self.router.recv_multipart())
 
         if message_type == "GET":
-            self.handle_get(header, identity, topic)
+            self.handle_get(identity, topic)
         if message_type == "ACK":
             self.handle_acknowledgement(identity, message_id, topic)
 
@@ -147,11 +147,11 @@ class Server(Program):
 
         print(f'CLIENT ID - {client_id}')
 
-        current_pointer = self.client_dict[client_id][topic]
-        if message_id == (current_pointer + 1):
-            self.client_dict[client_id][topic] = message_id
-        else:
-            pass
+        # current_pointer = self.client_dict[client_id][topic]
+        # if message_id == (current_pointer + 1):
+        #     self.client_dict[client_id][topic] = message_id
+        # else:
+        #     pass
             # TODO deal with mismatch message id in ACK (if we choose to do this other than re-send when no ACK is received)
 
     # --------------------------------------------------------------------------
