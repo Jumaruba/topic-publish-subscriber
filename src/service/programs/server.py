@@ -1,4 +1,5 @@
 import zmq
+
 from zmq import backend
 from zmq.sugar.socket import Socket
 
@@ -7,6 +8,7 @@ from .program import Program
 from .log.logger import Logger
 from .excpt.create_socket import CreateSocket
 from .message.message_parser import MessageParser
+
 
 class Server(Program):
 
@@ -17,12 +19,13 @@ class Server(Program):
     # Sockets
     poller: zmq.Poller
     backend: zmq.Socket
-    frontend: zmq.Socket 
+    frontend: zmq.Socket
     router: zmq.Socket
 
     # Dictionaries
     topic_dict: dict    # topic_dict[<topic>][<message id>] = message
-    client_dict: dict   # client_dict[<client id>][<topic>] = last message received
+    # client_dict[<client id>][<topic>] = last message received
+    client_dict: dict
 
     # --------------------------------------------------------------------------
     # Initialization of server
@@ -34,7 +37,7 @@ class Server(Program):
         self.create_poller()
         self.topic_dict = {}
         self.client_dict = {}
-    
+
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
         self.poller.register(self.frontend, zmq.POLLIN)
@@ -42,10 +45,13 @@ class Server(Program):
         self.poller.register(self.router, zmq.POLLIN)
 
     def init_sockets(self) -> None:
-        self.backend = self.create_socket(zmq.XSUB, SocketCreationFunction.BIND, '*:5556')
-        self.frontend = self.create_socket(zmq.XPUB, SocketCreationFunction.BIND, '*:5557')
-        self.router = self.create_socket(zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
-    
+        self.backend = self.create_socket(
+            zmq.XSUB, SocketCreationFunction.BIND, '*:5556')
+        self.frontend = self.create_socket(
+            zmq.XPUB, SocketCreationFunction.BIND, '*:5557')
+        self.router = self.create_socket(
+            zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
+
     # --------------------------------------------------------------------------
     # Data structure functions
     # --------------------------------------------------------------------------
@@ -71,7 +77,7 @@ class Server(Program):
         Adds a client to the clients data structure if it is not in it already
         """
         if client_id not in self.client_dict:
-            self.client_dict[client_id] =  {}
+            self.client_dict[client_id] = {}
 
     def add_message(self, topic: str, message: str) -> int:
         """
@@ -119,18 +125,30 @@ class Server(Program):
         self.frontend.send_multipart(message)
 
     def handle_dealer(self) -> None:
-        identity = self.router.recv()
-        [message_type, topic, message_id] = MessageParser.decode(self.router.recv_multipart())
+        identity, message_type, topic, *message_id = MessageParser.decode(self.router.recv_multipart())
 
+        if message_type == "GET":
+            self.handle_get(identity, topic)
         if message_type == "ACK":
             self.handle_acknowledgement(identity, message_id, topic)
 
+
+    def handle_get(self, client_id: int, topic: str) -> None:
+        Logger.get(client_id, topic)
+
+        # TODO fetch message from local data sctructure
+        #to_send = MessageParser.encode([client_id, topic, msg_id, msg_content])
+
+        to_send = MessageParser.encode([client_id, topic, 2, "test message"])
+        self.router.send_multipart(to_send)
+
+
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
         Logger.ack(client_id, topic, message_id)
-         
+
         # print(type)
         # if type == b'ACK':
-        #     print(f"[STATUS] {identity} :: {topic}-{message_id}") 
+        #     print(f"[STATUS] {identity} :: {topic}-{message_id}")
         #     socket_ack.send_multipart([identity, b"Received"])
 
     # --------------------------------------------------------------------------
@@ -142,8 +160,8 @@ class Server(Program):
         Runs the server, which includes handling subscriptions, publications,
         acknowledgements and error treatment
         """
-        while True: 
-            socks = dict(self.poller.poll()) 
+        while True:
+            socks = dict(self.poller.poll())
 
             # Receives subscription
             if socks.get(self.frontend) == zmq.POLLIN:
