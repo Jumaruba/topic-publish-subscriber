@@ -74,11 +74,11 @@ class Subscriber(Client):
     def subscribe(self, topic: str) -> None:
         # TODO
 
-        self.identity = str(zmq.IDENTITY).encode('utf-8')
-        print(f'decoded ID - {zmq.IDENTITY}')
+        # self.identity = str(zmq.IDENTITY).encode('utf-8')
+        # print(f'decoded ID - {zmq.IDENTITY}')
 
         self.subscriber.send_multipart(
-            [b'\x10' + self.identity, b'\x01' + topic.encode('utf-8')])
+            [b'\x10' + self.client_id.encode('utf-8'), b'\x01' + topic.encode('utf-8')])
 
     def unsubscribe(self, topic: str) -> None:
         # TODO

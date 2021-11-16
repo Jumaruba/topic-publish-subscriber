@@ -105,7 +105,7 @@ class Server(Program):
         self.add_topic(topic)
         self.add_client(client_id)
         # The next message this client needs to receive is the next of the topic
-        self.client_dict[client_id][topic] = self.last_message_of_topic()
+        self.client_dict[client_id][topic] = self.last_message_of_topic(topic)
 
     # --------------------------------------------------------------------------
     # Handling of messages
@@ -116,10 +116,15 @@ class Server(Program):
         Reads the message from the frontend socket, forwards it to the
         publishers and adds the new subscription to the data structures
         """
+        # Parse the message
         message = self.frontend.recv_multipart()
-        Logger.frontend(message)
+        client_id = int(message[0][1:])
+        topic = message[1][1:].decode()
+        Logger.subscription(client_id, topic)
+
+        # Forward to publishers and add to data structure
         self.backend.send_multipart(message)
-        # TODO: add_subscriber() - maybe convert the identity to int after decoding
+        self.add_subscriber(client_id, topic)
 
     def handle_publication(self) -> None:
         """

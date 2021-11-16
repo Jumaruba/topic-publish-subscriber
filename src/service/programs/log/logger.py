@@ -1,6 +1,10 @@
 class Logger:
 
     @staticmethod
+    def subscription(client_id: int, topic: str) -> None:
+        print(f"[SUBSCRIPTION] client {client_id} in topic {topic}")
+
+    @staticmethod
     def err(message: str) -> None:
         print(f"[ERR]", message)
 
