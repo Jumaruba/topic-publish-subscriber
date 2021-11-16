@@ -98,7 +98,7 @@ class Server(Program):
         self.topic_dict[topic][new_id] = message
         return new_id
 
-    def add_subscriber(self, topic: str, client_id: int) -> None:
+    def add_subscriber(self, client_id: int, topic: str) -> None:
         """
         Adds a client to the topics structure and returns the id created for it
         """
@@ -132,7 +132,8 @@ class Server(Program):
         self.add_message(str(message[0]), str(message[1]))
 
     def handle_dealer(self) -> None:
-        identity, message_type, topic, *message_id = MessageParser.decode(self.router.recv_multipart())
+        identity, message_type, topic, * \
+            message_id = MessageParser.decode(self.router.recv_multipart())
 
         if message_type == "GET":
             self.handle_get(identity, topic)
@@ -148,10 +149,14 @@ class Server(Program):
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
         Logger.ack(client_id, topic, message_id)
 
-        # print(type)
-        # if type == b'ACK':
-        #     print(f"[STATUS] {identity} :: {topic}-{message_id}")
-        #     socket_ack.send_multipart([identity, b"Received"])
+        print(f'CLIENT ID - {client_id}')
+
+        current_pointer = self.client_dict[client_id][topic]
+        if message_id == (current_pointer + 1):
+            self.client_dict[client_id][topic] = message_id
+        else:
+            pass
+            # TODO deal with mismatch message id in ACK (if we choose to do this other than re-send when no ACK is received)
 
     # --------------------------------------------------------------------------
     # Main function of server

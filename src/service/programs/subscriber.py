@@ -1,4 +1,5 @@
 import os
+
 import zmq
 import pickle
 import random
@@ -45,16 +46,15 @@ class Subscriber(Client):
         self.subscriber = self.context.socket(zmq.XSUB)
         self.subscriber.connect("tcp://localhost:5557")
 
-        # TODO id to be generated in __init__ or retreieved from persistent data
+        # TODO check if client ID already defined to restart client with the same ID instead of ceating a new one
+        self.client_id = str(random.randint(0, 8000))
         self.dealer = self.context.socket(zmq.DEALER)
-        self.dealer.setsockopt_string(zmq.IDENTITY, str(random.randint(0, 8000)))
+        self.dealer.setsockopt_string(zmq.IDENTITY, self.client_id)
         self.dealer.connect("tcp://localhost:5554")
-
 
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
         self.poller.register(self.dealer, zmq.POLLIN)
-        #self.poller.register(self.subscriber, zmq.POLLIN)
 
     def get_topics(self, topics_json):
         f = open(topics_json + ".json")
@@ -73,8 +73,12 @@ class Subscriber(Client):
 
     def subscribe(self, topic: str) -> None:
         # TODO
+
+        self.identity = str(zmq.IDENTITY).encode('utf-8')
+        print(f'decoded ID - {zmq.IDENTITY}')
+
         self.subscriber.send_multipart(
-            [b'\x10' + str(zmq.IDENTITY).encode('utf-8'), b'\x01' + topic.encode('utf-8')])
+            [b'\x10' + self.identity, b'\x01' + topic.encode('utf-8')])
 
     def unsubscribe(self, topic: str) -> None:
         # TODO
@@ -98,8 +102,6 @@ class Subscriber(Client):
             self.dealer.recv_multipart())
 
         Logger.topic_message(topic, msg_id, content)
-        self.dealer.send_multipart(
-            MessageParser.encode(['ACK', topic, msg_id]))
 
         self.messages_received[topic][msg_id] = content
 
@@ -107,6 +109,8 @@ class Subscriber(Client):
         pickle.dump(self.messages_received, data_persitence_file)
         data_persitence_file.close()
 
+        self.dealer.send_multipart(
+            MessageParser.encode(['ACK', topic, msg_id]))
 
     def recv_status(self) -> None:
         """
@@ -121,8 +125,7 @@ class Subscriber(Client):
 
     def run(self):
 
-        while True:
-            sleep(5)
+        for i in range(5):
             # Get random subscribed topic
             topic_idx = random.randint(0, len(self.topics)-1)
             topic = self.topics[topic_idx]
