@@ -90,7 +90,7 @@ class Subscriber(Client):
 
     def get(self, topic: str) -> None:
         self.dealer.send_multipart(MessageParser.encode(['GET', topic]))
-        Logger.get(zmq.IDENTITY, topic)
+        Logger.get(self.client_id, topic)
 
         self.poller.poll()
         self.handle_msg()

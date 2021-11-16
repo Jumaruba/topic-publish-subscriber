@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import zmq
 
 from zmq import backend
@@ -24,8 +26,7 @@ class Server(Program):
 
     # Dictionaries
     topic_dict: dict       # topic_dict[<topic>][<message id>] = message
-    # client_dict[<client id>][<topic>] = last message received
-    client_dict: dict
+    client_dict: dict      # client_dict[<client id>][<topic>] = last message received
     pending_clients: dict  # pending_clients[<topic>] = list of clients waiting
 
     # --------------------------------------------------------------------------
@@ -38,6 +39,7 @@ class Server(Program):
         self.create_poller()
         self.topic_dict = {}
         self.client_dict = {}
+        self.pending_clients = {}
 
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
@@ -66,7 +68,7 @@ class Server(Program):
             return -1
         return next(iter(self.topic_dict[topic].keys()))
 
-    def check_client_subscription(self, client_id: int, topic: str) -> int:
+    def check_client_subscription(self, client_id: int, topic: str) -> int | None:
         """
         Returns the position to the last message a client received.
         Checks if the client exists and if it is subscribed to the topic
@@ -98,7 +100,7 @@ class Server(Program):
         if topic not in self.topic_dict:
             self.topic_dict[topic] = {}
         if topic not in self.pending_clients:
-            self.pending_clients[topic] = {}
+            self.pending_clients[topic] = []
 
     def add_client(self, client_id: int) -> None:
         """
@@ -138,7 +140,10 @@ class Server(Program):
 
         if pending_clients:
             for client_id in pending_clients:
-                self.message_for_client(client_id, topic)
+                # Send message to pending client
+                message = self.message_for_client(client_id, topic)
+                self.router.send_multipart(MessageParser.encode(message))
+
             self.pending_clients[topic] = []
 
     def handle_subscription(self) -> None:
@@ -164,9 +169,9 @@ class Server(Program):
         """
         message = self.backend.recv_multipart()
         Logger.backend(message)
-        self.add_message(str(message[0]), str(message[1]))
-
-        self.update_pending_clients(message[0])
+        topic, message = message[0].decode(), message[1].decode()
+        self.add_message(topic, message)
+        self.update_pending_clients(topic)
 
     def handle_dealer(self) -> None:
         identity, message_type, topic, * \
@@ -175,10 +180,9 @@ class Server(Program):
         if message_type == "GET":
             self.handle_get(int(identity), topic)
         if message_type == "ACK":
-            self.handle_acknowledgement(int(identity), message_id, topic)
+            self.handle_acknowledgement(int(identity), int(message_id[0]), topic)
 
     def handle_get(self, client_id: int, topic: str) -> None:
-        print(self.client_dict)
         Logger.get(client_id, topic)
 
         # Verify if client exists and is subscribed
