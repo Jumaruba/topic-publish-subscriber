@@ -65,7 +65,7 @@ class Server(Program):
             return -1
         return next(iter(self.topic_dict[topic].keys()))
 
-    def check_client_subscription(self, client_id: int, topic: str) -> int | None:
+    def check_client_subscription(self, client_id: int, topic: str) -> int:
         """
         Returns the position to the last message a client received.
         Checks if the client exists and if it is subscribed to the topic
