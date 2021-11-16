@@ -23,8 +23,9 @@ class Server(Program):
     router: zmq.Socket
 
     # Dictionaries
-    topic_dict: dict    # topic_dict[<topic>][<message id>] = message
-    client_dict: dict   # client_dict[<client id>][<topic>] = last message received
+    topic_dict: dict       # topic_dict[<topic>][<message id>] = message
+    client_dict: dict      # client_dict[<client id>][<topic>] = last message received
+    pending_clients: dict  # pending_clients[<topic>] = list of clients waiting
 
     # --------------------------------------------------------------------------
     # Initialization of server
