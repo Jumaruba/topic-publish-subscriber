@@ -24,7 +24,8 @@ class Server(Program):
 
     # Dictionaries
     topic_dict: dict       # topic_dict[<topic>][<message id>] = message
-    client_dict: dict      # client_dict[<client id>][<topic>] = last message received
+    # client_dict[<client id>][<topic>] = last message received
+    client_dict: dict
     pending_clients: dict  # pending_clients[<topic>] = list of clients waiting
 
     # --------------------------------------------------------------------------
@@ -129,6 +130,17 @@ class Server(Program):
     # Handling of messages
     # --------------------------------------------------------------------------
 
+    def update_pending_clients(self, topic: str) -> None:
+        """
+        If there are any pending clients for a topic, goes through the list and sends the last received message
+        """
+        pending_clients = self.pending_clients[topic]
+
+        if pending_clients:
+            for client_id in pending_clients:
+                self.message_for_client(client_id, topic)
+            self.pending_clients[topic] = []
+
     def handle_subscription(self) -> None:
         """
         Reads the message from the frontend socket, forwards it to the
@@ -153,6 +165,8 @@ class Server(Program):
         message = self.backend.recv_multipart()
         Logger.backend(message)
         self.add_message(str(message[0]), str(message[1]))
+
+        self.update_pending_clients(message[0])
 
     def handle_dealer(self) -> None:
         identity, message_type, topic, * \
