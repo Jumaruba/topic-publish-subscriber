@@ -48,10 +48,14 @@ class Subscriber(Client):
             f = open(self.data_path, 'rb')
             content = pickle.load(f)        # Probably going to open as dict
             print(content)
-            f.close()
-            pass    
-        else:
-            print("No State")
+            f.close() 
+            self.handle_crash(content)
+
+    def handle_crash(self, state: dict):  
+        message = ["CRASH"]
+        for topic in state.items():
+            pass
+        self.dealer.send_multipart(MessageParser.encode(message))
     
     def delete_state(self):
         pass
@@ -81,7 +85,6 @@ class Subscriber(Client):
         for topic in self.topics:
             self.subscribe(topic)
             Logger.subscribe(topic)
-            self.messages_received[topic] = {}
 
     # --------------------------------------------------------------------------
     # Subscrition functions
@@ -119,7 +122,7 @@ class Subscriber(Client):
 
         Logger.topic_message(topic, msg_id, content)
 
-        self.messages_received[topic][msg_id] = content
+        self.messages_received[topic] = msg_id
 
         data_persitence_file = open(self.data_path, "wb")
         pickle.dump(self.messages_received, data_persitence_file)
