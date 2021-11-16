@@ -135,16 +135,19 @@ class Server(Program):
         """
         If there are any pending clients for a topic, goes through the list and sends the last received message
         """
-        print("     update:", self.pending_clients)
         pending_clients = self.pending_clients[topic]
+        if not pending_clients:
+            return
 
-        if pending_clients:
-            for client_id in pending_clients:
-                # Send message to pending client
-                message = self.message_for_client(client_id, topic)
-                self.router.send_multipart(MessageParser.encode(message))
+        Logger.success(f"    Send message to the waiting subscribers:", end=" ")
+        for client_id in pending_clients:
+            # Send message to pending client
+            message = self.message_for_client(client_id, topic)
+            self.router.send_multipart(MessageParser.encode(message))
+            Logger.success(client_id, end=" ")
 
-            self.pending_clients[topic] = []
+        Logger.success()
+        self.pending_clients[topic] = []
 
     def handle_subscription(self) -> None:
         """
@@ -153,6 +156,8 @@ class Server(Program):
         """
         # Parse the message
         message = self.frontend.recv_multipart()
+        Logger.new_message(message)
+
         client_id = int(message[0][1:])
         topic = message[1][1:].decode()
         Logger.subscription(client_id, topic)
@@ -167,20 +172,20 @@ class Server(Program):
         sends it to the subscribers and adds the new message to the data
         structures
         """
-        message = self.backend.recv_multipart()
-        Logger.backend(message)
-        topic, message = message[0].decode(), message[1].decode()
-        print("PUT", topic)
-        print("     before:", self.topic_dict)
+        raw_message = self.backend.recv_multipart()
+        Logger.new_message(raw_message)
 
-        self.add_message(topic, message)
+        topic, message = raw_message[0].decode(), raw_message[1].decode()
+        message_id = self.add_message(topic, message)
+        Logger.publication(topic, message_id, message)
+
         self.update_pending_clients(topic)
 
-        print("     after:", self.topic_dict)
-
     def handle_dealer(self) -> None:
-        identity, message_type, topic, * \
-            message_id = MessageParser.decode(self.router.recv_multipart())
+        message = self.router.recv_multipart()
+        Logger.new_message(message)
+
+        identity, message_type, topic, *message_id = MessageParser.decode(message)
 
         if message_type == "GET":
             self.handle_get(int(identity), topic)
@@ -188,36 +193,29 @@ class Server(Program):
             self.handle_acknowledgement(int(identity), int(message_id[0]), topic)
 
     def handle_get(self, client_id: int, topic: str) -> None:
-        # Logger.get(client_id, topic)
-        print("GET", topic)
-        print("     before:", self.client_dict)
+        Logger.request(client_id, topic)
 
         # Verify if client exists and is subscribed
         if self.check_client_subscription(client_id, topic) is None:
             return
-
         # Gets and verifies message
         message = self.message_for_client(client_id, topic)
         if message is None:
             # Adds to the pending clients, as there's no message to be send
             self.pending_clients[topic].append(client_id)
+            Logger.warning(f"    Added {client_id} to the waiting list for '{topic}'")
             return
-
         # Send to client
         self.router.send_multipart(MessageParser.encode(message))
-        print("     after:", self.client_dict)
+        Logger.success(f"    The message {int(message[2])} was sent to the subscriber")
 
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
-        print("ACK")
-        print("     before:", self.client_dict)
-
-        Logger.ack(client_id, topic, message_id)
+        Logger.acknowledgement(client_id, topic, message_id)
 
         if self.check_client_subscription(client_id, topic) is not None:
             self.client_dict[client_id][topic] = message_id
         else:
-            Logger.err(f'client {client_id} is not subscribed to {topic}')
-        print("     after:", self.client_dict)
+            Logger.warning(f"    {client_id} is not a subscriber of '{topic}'")
 
     # --------------------------------------------------------------------------
     # Main function of server
