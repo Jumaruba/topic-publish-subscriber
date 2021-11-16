@@ -11,7 +11,6 @@ class MessageParser:
 
     @staticmethod
     def decode(messages):
-        print(messages)
         for i in range(len(messages)):
             messages[i] = messages[i].decode('utf-8')
         return messages
