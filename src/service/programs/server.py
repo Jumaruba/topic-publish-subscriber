@@ -65,6 +65,15 @@ class Server(Program):
             return -1
         return next(iter(self.topic_dict[topic].keys()))
 
+    def check_client_subscription(self, client_id: int, topic: str) -> int | None:
+        """
+        Returns the position to the last message a client received.
+        Checks if the client exists and if it is subscribed to the topic
+        """
+        position = self.client_dict.get(client_id, {}).get(topic)
+
+        return position
+
     def message_for_client(self, client_id: int, topic: str) -> list:
         """
         Returns the next message that needs to be send to the client,
@@ -72,6 +81,12 @@ class Server(Program):
         """
         last_message_id = self.client_dict[client_id][topic]
         next_message_id = last_message_id + 1
+
+        # There's no message for this client,
+        # it needs to wait for a new message from a publisher
+        if next_message_id not in self.topic_dict[topic]:
+            return None
+
         next_message = self.topic_dict[topic][next_message_id]
         return [client_id, topic, next_message_id, next_message]
 
@@ -81,6 +96,8 @@ class Server(Program):
         """
         if topic not in self.topic_dict:
             self.topic_dict[topic] = {}
+        if topic not in self.pending_clients:
+            self.pending_clients[topic] = {}
 
     def add_client(self, client_id: int) -> None:
         """
@@ -107,15 +124,6 @@ class Server(Program):
         self.add_client(client_id)
         # The next message this client needs to receive is the next of the topic
         self.client_dict[client_id][topic] = self.last_message_of_topic(topic)
-
-    def check_client_subscription(self, client_id: int, topic: str) -> None:
-        """
-        Updates the pointer to the last message a client received.
-        Checks if the client exists, if it is subscribed to the topic and updates the last message received
-        """
-        position = self.client_dict.get(client_id, {}).get(topic)
-
-        return position
 
     # --------------------------------------------------------------------------
     # Handling of messages
@@ -158,8 +166,19 @@ class Server(Program):
     def handle_get(self, client_id: int, topic: str) -> None:
         print(self.client_dict)
         Logger.get(client_id, topic)
-        # TODO: verify if client exists and is subscribed
+
+        # Verify if client exists and is subscribed
+        if self.check_client_subscription(client_id, topic) is None:
+            return
+
+        # Gets and verifies message
         message = self.message_for_client(client_id, topic)
+        if message is None:
+            # Adds to the pending clients, as there's no message to be send
+            self.pending_clients[topic].append(client_id)
+            return
+
+        # Send to client
         self.router.send_multipart(MessageParser.encode(message))
 
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
