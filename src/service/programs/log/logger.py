@@ -2,7 +2,7 @@ class Logger:
 
     @staticmethod
     def subscription(client_id: int, topic: str) -> None:
-        print(f"[SUBSCRIPTION] client {client_id} in topic {topic}")
+        print(f"[SUBSCRIPTION] {topic} :: {client_id}")
 
     @staticmethod
     def err(message: str) -> None:

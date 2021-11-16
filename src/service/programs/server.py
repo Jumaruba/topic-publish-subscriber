@@ -71,7 +71,7 @@ class Server(Program):
         """
         last_message_id = self.client_dict[client_id][topic]
         next_message_id = last_message_id + 1
-        next_message = topic_dict[topic][next_message_id]
+        next_message = self.topic_dict[topic][next_message_id]
         return [client_id, topic, next_message_id, next_message]
 
     def add_topic(self, topic: str) -> None:
@@ -150,11 +150,12 @@ class Server(Program):
             message_id = MessageParser.decode(self.router.recv_multipart())
 
         if message_type == "GET":
-            self.handle_get(identity, topic)
+            self.handle_get(int(identity), topic)
         if message_type == "ACK":
-            self.handle_acknowledgement(identity, message_id, topic)
+            self.handle_acknowledgement(int(identity), message_id, topic)
 
     def handle_get(self, client_id: int, topic: str) -> None:
+        print(self.client_dict)
         Logger.get(client_id, topic)
         # TODO: verify if client exists and is subscribed
         message = self.message_for_client(client_id, topic)
