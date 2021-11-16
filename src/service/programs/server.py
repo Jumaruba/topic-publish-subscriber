@@ -129,7 +129,7 @@ class Server(Program):
             message_id = MessageParser.decode(self.router.recv_multipart())
 
         if message_type == "GET":
-            self.handle_get(header, identity, topic)
+            self.handle_get(identity, topic)
         if message_type == "ACK":
             self.handle_acknowledgement(identity, message_id, topic)
 
