@@ -98,6 +98,15 @@ class Server(Program):
         # The next message this client needs to receive is the next of the topic
         self.client_dict[client_id][topic] = self.last_message_of_topic()
 
+    def check_client_subscription(self, client_id: int, topic: str) -> None:
+        """
+        Updates the pointer to the last message a client received.
+        Checks if the client exists, if it is subscribed to the topic and updates the last message received
+        """
+        position = self.client_dict.get(client_id, {}).get(topic)
+
+        return position
+
     # --------------------------------------------------------------------------
     # Handlers of messages
     # --------------------------------------------------------------------------
@@ -145,14 +154,10 @@ class Server(Program):
     def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
         Logger.ack(client_id, topic, message_id)
 
-        print(f'CLIENT ID - {client_id}')
-
-        current_pointer = self.client_dict[client_id][topic]
-        if message_id == (current_pointer + 1):
+        if self.check_client_subscription(client_id, topic):
             self.client_dict[client_id][topic] = message_id
         else:
-            pass
-            # TODO deal with mismatch message id in ACK (if we choose to do this other than re-send when no ACK is received)
+            Logger.err(f'client {client_id} is not subscribed to {topic}')
 
     # --------------------------------------------------------------------------
     # Main function of server
