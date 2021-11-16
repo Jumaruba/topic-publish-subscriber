@@ -17,6 +17,10 @@ class Logger:
         print(f"[RECEIVED] {topic}-{msg_id} :: {content}")
 
     @staticmethod
+    def put_message(topic: str, msg_id: int, content: str) -> None:
+        print(f"[SENT] {topic}-{msg_id} :: {content}")
+
+    @staticmethod
     def ack(identity: int, topic: str, msg_id: int) -> None:
         print(f"[ACK] {topic}-{msg_id} :: {identity} ")
 

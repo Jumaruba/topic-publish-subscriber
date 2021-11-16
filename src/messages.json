@@ -1,0 +1,58 @@
+{"topics":[
+    {"name": "weather",
+    "messages": [
+         "I am surprised to say the weather was better." ,
+         "The weather was balmy, adding to the enjoyment of the day." ,
+         "The weather is supposed to be nice this weekend." ,
+         "The weather made outdoor activities unrealistic." ,
+         "It was the weather that made her so irritable." ,
+         "The weather had turned sultry but there was a cool breeze out on the patio by the barbecue." ,
+         "The dry weather was perfect for building." ,
+         "The weather had cleared again since noon." ,
+         "He remembered only the dull gray weather." ,
+         "The national weather forecast on television was calling for light snow in Arkansas." ,
+         "The weather was already growing wintry and morning frosts congealed an earth saturated by autumn rains." ,
+         "In spite of the mud and weather, she felt much better." ,
+         "In the right stage of the weather a pond fires its evening gun with great regularity." ,
+         "As the weather improved, the goats began kidding in earnest."
+    ]}, 
+    {"name": "covid",
+    "messages":[
+        "Victoria has 797 new COVID19 cases and eight deaths." ,
+        "Covid booster jabs set to be given to people in their 50s as NPHET give stark warning." ,
+         "Austria introduces lockdown for unvaccinated." ,
+         "Europe should be wary of possible new Covid variants." ,
+         "Why is Europe the Covid epicentre once again?" ,
+         "Coronavirus cases declining everywhere except Europe." ,
+         "The UK has one of the highest Covid infection rates in the world right now." ,
+         "COVID19 vaccines can help prevent new variants from emerging" ,
+         "COVID19 vaccines do not change or interact with your DNA in any way." ,
+         "Older adults are more likely than younger, healthier people to experience serious illness from COVID19." ,
+         "All three vaccines are safe and effective at preventing hospitalization and death." ,
+         "Fully vaccinated people with breakthrough infections are less likely to develop serious illness from COVID19 than unvaccinated people." ,
+         "People with COVID19 have reported a wide range of symptoms ." ,
+         "A COVID19 test can help you determine if you have an infection." 
+    ]},
+    {"name": "goats",
+    "messages":[
+         "Goats were one of the first animals to be tamed by humans and were being herded 9000 years ago." ,
+         "Goat meat is the most consumed meat per capita worldwide." ,
+         "Goats have a gestation period (pregnancy) of five month." ,
+         "Goats are herd animals and will become depressed if kept without any goat companions." ,
+         "This unusual shape, shared by sheep and several other ungulates, gives them a fuller range of vision than humans and other animals with round pupils." ,
+         "The four chambered stomach helps goats digest tough roughage like grass and hay." ,
+         "Around the globe more people eat and drink meat and milk from goats than any other animal." 
+    ]},
+    {"name":"cats",
+    "messages":[
+         "The genome of a cat is 95 percent tiger, and they share many behaviors with their jungle ancestors.",
+         "Cats are believed to be the only mammals who do not taste sweetness.",
+         "Cats are nearsighted, but their peripheral vision and night vision are much better than that of humans.",
+         "Cats can jump up to six times their length.",
+         "The collarbone of a cat does not connect to their other bones.",
+         "Cats have an extra organ that allows them to taste scents on the air.",
+         "Cats have 230 bones, while humans only have 206.",
+         "The claws of the cats are all curve downward.",
+         "Cats are supposed to have 18 toes."
+    ]}
+]}

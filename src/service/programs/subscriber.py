@@ -2,6 +2,7 @@ import os
 import zmq
 import pickle
 import random
+import json
 
 from .log.logger import Logger
 from .message.message_parser import MessageParser
@@ -21,25 +22,23 @@ class Subscriber(Client):
     data_path: str
     client_id: int
     messages_received: dict  # messages_received[topic][message_id] = message
+    topics: list
 
     # --------------------------------------------------------------------------
     # Initialization of subscriber
     # --------------------------------------------------------------------------
 
-    def __init__(self):
+    def __init__(self, topics_json: str):
         super().__init__()
         current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(current_path, PERSISTENT_DATA_PATH)
 
         self.create_sockets()
         self.create_poller()
-
-        self.topic = "sdle"  # to change, receive multiple topics
-        self.subscribe(self.topic)
-        Logger.subscribe(self.topic)
+        self.get_topics(topics_json)
 
         self.messages_received = {}
-        self.messages_received[self.topic] = {}
+        self.subscribe_topics()
 
     def create_sockets(self) -> None:
         self.subscriber = self.context.socket(zmq.XSUB)
@@ -55,6 +54,17 @@ class Subscriber(Client):
         self.poller = zmq.Poller()
         self.poller.register(self.dealer, zmq.POLLIN)
         #self.poller.register(self.subscriber, zmq.POLLIN)
+
+    def get_topics(self, topics_json):
+        f = open(topics_json + ".json")
+        self.topics = json.load(f).get("topics")
+        f.close()
+
+    def subscribe_topics(self):
+        for topic in self.topics:
+            self.subscribe(topic)
+            Logger.subscribe(topic)
+            self.messages_received[topic] = {}
 
     # --------------------------------------------------------------------------
     # Subscrition functions
@@ -75,6 +85,7 @@ class Subscriber(Client):
 
     def get(self, topic: str) -> None:
         self.dealer.send_multipart(MessageParser.encode(['GET', topic]))
+        Logger.get(zmq.IDENTITY, topic)
 
         self.poller.poll()
         self.handle_msg()
@@ -108,6 +119,10 @@ class Subscriber(Client):
     # --------------------------------------------------------------------------
 
     def run(self):
-
+        
         for i in range(5):
-            self.get(self.topic)
+            # Get random subscribed topic
+            topic_idx = random.randint(0, len(self.topics)-1)
+            topic = self.topics[topic_idx]
+
+            self.get(topic)
