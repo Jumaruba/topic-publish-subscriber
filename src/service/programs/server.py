@@ -12,6 +12,8 @@ from .excpt.create_socket import CreateSocket
 from .message.message_parser import MessageParser
 from .state.server_state import ServerState
 from typing import List
+import threading 
+import os
 
 class Server(Program):
 
@@ -34,7 +36,14 @@ class Server(Program):
         super().__init__()
         self.init_sockets()
         self.create_poller()
-        self.state = ServerState()
+        # How many messages must be received to the state be saved. 
+        self.save_frequency = 10
+        # State  
+
+        current_data_path = os.path.abspath(os.getcwd())   
+        persistent_data_path = f"/data/server_status.bin" 
+        data_path = current_data_path + persistent_data_path
+        self.state = ServerState.read_state(data_path)
 
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
@@ -51,10 +60,10 @@ class Server(Program):
         self.router = self.create_socket(
             zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
 
-    # --------------------------------------------------------------------------
-    # Handling of messages
-    # --------------------------------------------------------------------------
 
+    # --------------------------------------------------------------------------
+    #  Handling of messages
+    # --------------------------------------------------------------------------
     def update_pending_clients(self, topic: str) -> None:
         """
         If there are any pending clients for a topic, goes through the list and sends the last received message
@@ -125,7 +134,8 @@ class Server(Program):
 
         if message_type == "GET":
             self.handle_get(identity, topic = message[2])
-        elif message_type == "ACK":
+        elif message_type == "ACK": 
+            self.msg_counter -= 1                
             message_id = int(message[3])
             topic = message[2]
             self.handle_acknowledgement(identity, message_id, topic)
@@ -156,13 +166,6 @@ class Server(Program):
         else:
             Logger.warning(f"    {client_id} is not a subscriber of '{topic}'")
 
-        # current_pointer = self.client_dict[client_id][topic]
-        # if message_id == (current_pointer + 1):
-        #     self.client_dict[client_id][topic] = message_id
-        # else:
-        #     pass
-            # TODO deal with mismatch message id in ACK (if we choose to do this other than re-send when no ACK is received)
-
     # --------------------------------------------------------------------------
     # Main function of server
     # --------------------------------------------------------------------------
@@ -171,22 +174,26 @@ class Server(Program):
         """
         Runs the server, which includes handling subscriptions, publications,
         acknowledgements and error treatment
-        """
+        """  
+        # When this number achieves to 0, it saves the state in the file. It's decremented for each ACK.
+        self.msg_counter = self.save_frequency 
         while True:
             socks = dict(self.poller.poll())
 
             # Receives subscription
             if socks.get(self.frontend) == zmq.POLLIN:
-                print("SUB MESSAGE {")
                 self.handle_subscription()
-                print("SUB MESSAGE }")
 
             # Receives content from publishers
             if socks.get(self.backend) == zmq.POLLIN:
-                print("PUT MESSAGE")
                 self.handle_publication()
 
             # Receives message from subscribers
             if socks.get(self.router) == zmq.POLLIN:
-                print("GET MESSAGE")
-                self.handle_dealer()
+                self.handle_dealer() 
+
+            # Saves the state
+            if self.msg_counter == 0:
+                self.msg_counter = self.save_frequency
+                t = threading.Thread(target=self.state.save_state)
+                t.start()

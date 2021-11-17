@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-class ServerState:
+from .state import State
+
+
+class ServerState(State):
 
     # --------------------------------------------------------------------------
     # Initialization
@@ -9,11 +12,18 @@ class ServerState:
     topic_dict: dict       # topic_dict[<topic>][<message id>] = message
     client_dict: dict      # client_dict[<client id>][<topic>] = last message received
     pending_clients: dict  # pending_clients[<topic>] = list of clients waiting
-
-    def __init__(self) -> None:
+    
+    def __init__(self, data_path: str) -> None:
+        super().__init__(data_path)
         self.topic_dict = {}
         self.client_dict = {}
         self.pending_clients = {}
+
+    @staticmethod
+    def read_state(data_path: str):
+        state = State.get_state_from_file(data_path)
+        if state is None:
+            return ServerState(data_path)
 
     # --------------------------------------------------------------------------
     # Get data
@@ -55,15 +65,25 @@ class ServerState:
     def get_waiting_list(self, topic: str) -> list:
         return self.pending_clients[topic]
 
-    def is_unsubscribed_topic(self, topic: str) -> None:
-        for _, topics in client_dict:
+    def is_unsubscribed_topic(self, topic: str) -> bool:
+        for _, topics in self.client_dict:
             if topic in topics:
                 return True
         return False
 
-    def is_unsubscribed_client(seld, client_id: str) -> None:
-        pass
-        # if client_dict[client_id]
+    def is_unsubscribed_client(self, client_id: str) -> bool:
+        return self.client_dict[client_id] == {}
+
+    def first_message(self, topic: str) -> int:
+        if not self.topic_dict[topic]:
+            return -1
+        return next(iter(self.topic_dict[topic].keys()))
+
+    def last_message_received_by_all(self, topic: str) -> int:
+        result = -1
+        for topics in self.client_dict.values():
+            result = min(result, topics[topic])
+        return result
 
     # --------------------------------------------------------------------------
     # Add data
@@ -113,10 +133,33 @@ class ServerState:
 
     def update_client_last_message(self, client_id: int, topic: str, message_id: int) -> None:
         self.client_dict[client_id][topic] = message_id
+        self.collect_garbage(topic)
 
     # --------------------------------------------------------------------------
     # Remove data
     # --------------------------------------------------------------------------
+
+    def delete_messages_until(self, topic: str, limit: int) -> None:
+        key_list = list(iter(self.topic_dict[topic].keys()))
+        for key in key_list:
+            if key > limit:
+                break
+            self.topic_dict[topic].pop(key)
+
+    def collect_garbage(self, topic: str) -> None:
+        first_message = self.first_message(topic)
+        last_message = self.last_message_received_by_all(topic)
+
+        # No messages to delete
+        if last_message == -1:
+            return
+
+        if last_message > first_message:
+            self.delete_messages_until(topic, last_message - 1)
+
+    def remove_topic(self, topic: str) -> None:
+        self.topic_dict.pop(topic)
+        self.pending_clients(topic)
 
     def remove_subscriber(self, client_id: int, topic: str) -> None:
         """
@@ -124,7 +167,8 @@ class ServerState:
         """
         self.client_dict[client_id].pop(topic)
 
-        # TODO: remove messages if the client is the last one of the topic
+        if self.is_unsubscribed_topic(topic):
+            self.remove_topic(topic)
 
     def empty_waiting_list(self, topic: str) -> None:
         self.pending_clients[topic] = []

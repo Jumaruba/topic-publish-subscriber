@@ -22,7 +22,8 @@ def get_program(args: list) -> Program | None:
         return Server()
 
     if type_of_program == 'publisher' and len(args) == 2:
-        return Publisher(args[1])
+        return Publisher(args[1]) 
+        
     elif type_of_program == 'subscriber' and len(args) == 3:
         return Subscriber(args[1], args[2])
     else:
