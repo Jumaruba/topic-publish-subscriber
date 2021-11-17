@@ -8,6 +8,7 @@ class Logger:
 
     @staticmethod
     def new_message(message: list) -> None:
+        #TODO
         return
         print("\n" + "-" * 80)
         print(f"{message}")
@@ -16,6 +17,10 @@ class Logger:
     @staticmethod
     def subscription(client_id: int, topic: str) -> None:
         print(f"SUB {client_id} - '{topic}'")
+
+    @staticmethod
+    def unsubscription(client_id: int, topic: str) -> None:
+        print(f"UNSUB {client_id} - '{topic}'")
 
     @staticmethod
     def publication(topic: str, message_id: int, message: str):
@@ -60,6 +65,10 @@ class Logger:
     @staticmethod
     def subscribe(topic: str) -> None:
         print(f"[SUBSCRIBE] {topic}")
+
+    @staticmethod
+    def unsubscribe(topic: str) -> None:
+        print(f"[UNSUBSCRIBE] {topic}")
 
     # --------------------------------------------------------------------------
     # Publisher logs

@@ -157,18 +157,25 @@ class Server(Program):
         # Parse the message
         message = self.frontend.recv_multipart()
         Logger.new_message(message)
+        sub_type = message[1][0]
 
+        # TODO - find a way to ignore auto sent unsubscribe
         client_id = int(message[0][1:])
         topic = message[1][1:].decode()
-        Logger.subscription(client_id, topic)
 
-        # Forward to publishers and add to data structure
-        self.backend.send_multipart(message)
-        self.add_subscriber(client_id, topic)
+        if sub_type == 1:
+            Logger.subscription(client_id, topic)
+            # Forward to publishers and add to data structure
+            self.backend.send_multipart(message)
+            self.add_subscriber(client_id, topic)
+        elif sub_type == 0:
+            Logger.unsubscription(client_id, topic)
+            self.backend.send_multipart(message)
+            # TODO - unsubscribe client
 
     def handle_publication(self) -> None:
         """
-        Reads the message from the backend socket, created a new id for it,
+        Reads the message from the backend socket, creates a new id for it,
         sends it to the subscribers and adds the new message to the data
         structures
         """
@@ -176,6 +183,7 @@ class Server(Program):
         Logger.new_message(raw_message)
 
         topic, message = raw_message[0].decode(), raw_message[1].decode()
+        # TODO - save original message id to send ack to publisher
         message_id = self.add_message(topic, message)
         Logger.publication(topic, message_id, message)
 
@@ -183,15 +191,13 @@ class Server(Program):
 
     def handle_dealer(self) -> None:
         message = MessageParser.decode(self.router.recv_multipart())
-        identity = message[0]
+        identity = int(message[0])
         message_type = message[1]
-
-        identity, message_type, topic, *message_id = MessageParser.decode(message)
 
         if message_type == "GET":
             self.handle_get(identity, topic = message[2])
         elif message_type == "ACK":
-            message_id = message[3]
+            message_id = int(message[3])
             topic = message[2]
             self.handle_acknowledgement(identity, message_id, topic)
         elif message_type == "CRASH":
@@ -202,9 +208,10 @@ class Server(Program):
 
         # Verify if client exists and is subscribed
         if self.check_client_subscription(client_id, topic) is None:
-            return
+            return 
         # Gets and verifies message
         message = self.message_for_client(client_id, topic)
+
         if message is None:
             # Adds to the pending clients, as there's no message to be send
             self.pending_clients[topic].append(client_id)
@@ -221,8 +228,7 @@ class Server(Program):
             self.client_dict[client_id][topic] = message_id
         else:
             Logger.warning(f"    {client_id} is not a subscriber of '{topic}'")
-        print(f'CLIENT ID - {client_id}')
-
+        
         # current_pointer = self.client_dict[client_id][topic]
         # if message_id == (current_pointer + 1):
         #     self.client_dict[client_id][topic] = message_id
@@ -240,9 +246,9 @@ class Server(Program):
             for msg_id in topic_messages.keys():
                 if int(msg_id) > last_client:   
                     content = self.topic_dict[topic][msg_id]
-                    to_send = MessageParser.encode([identity, topic, msg_id, content])  
+                    to_send = MessageParser.encode([topic, msg_id, content])  
                     Logger.put_message(to_send)
-                    self.router.send_multipart(to_send)
+                    self.router.send_multipart(identity + to_send)
 
     # --------------------------------------------------------------------------
     # Main function of server

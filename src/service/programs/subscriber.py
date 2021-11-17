@@ -88,23 +88,23 @@ class Subscriber(Client):
         for topic in self.topics:
             self.subscribe(topic)
             Logger.subscribe(topic)
+    
+    def unsubscribe_topics(self):
+        for topic in self.topics:
+            self.unsubscribe(topic)
+            Logger.unsubscribe(topic)
 
     # --------------------------------------------------------------------------
     # Subscrition functions
     # --------------------------------------------------------------------------
 
     def subscribe(self, topic: str) -> None:
-        # TODO
-
-        # self.identity = str(zmq.IDENTITY).encode('utf-8')
-        # print(f'decoded ID - {zmq.IDENTITY}')
-
         self.subscriber.send_multipart(
             [b'\x10' + self.client_id.encode('utf-8'), b'\x01' + topic.encode('utf-8')])
 
     def unsubscribe(self, topic: str) -> None:
-        # TODO
-        pass
+        self.subscriber.send_multipart(
+            [b'\x10' + self.client_id.encode('utf-8'), b'\x00' + topic.encode('utf-8')])
 
     # --------------------------------------------------------------------------
     # Message handling functions
@@ -146,10 +146,11 @@ class Subscriber(Client):
     # --------------------------------------------------------------------------
 
     def run(self):
-
+        # TODO - if 'limit' arg is specified, unsubscribe after sending 'limit' GETs, otherwise use and infinite loop
         for i in range(5):
             # Get random subscribed topic
             topic_idx = random.randint(0, len(self.topics)-1)
             topic = self.topics[topic_idx]
 
             self.get(topic)
+        self.unsubscribe_topics()
