@@ -35,7 +35,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:  
         print_error("Invalid number of arguments, expected: server | subscriber <messages> <id>| publisher <topics>")  
 
-    program = get_program(sys.argv[1:]) 
+    program = get_program(sys.argv[1:])
     if program is None:
         print_error("Invalid number of arguments, expected: server | subscriber <messages> <id>| publisher <topics>")
 
