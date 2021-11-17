@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 import zmq
@@ -22,8 +24,9 @@ class Subscriber(Client):
 
     data_path: str
     client_id: int
-    messages_received: dict  # messages_received[topic][message_id] = message
     topics: list
+    messages_received: dict  # messages_received[topic] = message_id
+    last_get: str | None
 
     # --------------------------------------------------------------------------
     # Initialization of subscriber
@@ -35,30 +38,25 @@ class Subscriber(Client):
         current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(current_path, persistent_data_path)
         self.client_id = client_id 
+        self.last_get = None 
+        self.messages_received = {} 
 
         self.create_sockets()
-        self.create_poller()
         self.get_topics(topics_json)
         self.get_state() 
-
-        self.messages_received = {}
         self.subscribe_topics()
     
     def get_state(self):
         if os.path.exists(self.data_path):
             f = open(self.data_path, 'rb')
-            content = pickle.load(f)        # Probably going to open as dict
-            print(content)
+            self.messages_received = pickle.load(f)
             f.close() 
-            self.handle_crash(content)
+            self.handle_crash()
 
-    def handle_crash(self, state: dict):  
-        message = ["CRASH"]
-        for topic, msg_id in state.items(): 
-            message.append(topic)
-            message.append(msg_id)  
-        print(message)
-        self.dealer.send_multipart(MessageParser.encode(message))
+    def handle_crash(self):  
+        if self.last_get is not None:
+            msg_id = self.messages_received[self.last_get]
+            self.dealer.send_multipart(MessageParser.encode(["ACK", self.last_get, msg_id]))
     
     def delete_state(self):
         pass
@@ -67,16 +65,9 @@ class Subscriber(Client):
         self.subscriber = self.context.socket(zmq.XSUB)
         self.subscriber.connect("tcp://localhost:5557")
 
-        # TODO check if client ID already defined to restart client with the same ID instead of ceating a new one
         self.dealer = self.context.socket(zmq.DEALER)
         self.dealer.setsockopt_string(zmq.IDENTITY, self.client_id)
         self.dealer.connect("tcp://localhost:5554")
-
-
-    def create_poller(self) -> None:
-        self.poller = zmq.Poller()
-        self.poller.register(self.dealer, zmq.POLLIN)
-
 
     def get_topics(self, topics_json):
         f = open(topics_json + ".json")
@@ -92,6 +83,7 @@ class Subscriber(Client):
     def unsubscribe_topics(self):
         for topic in self.topics:
             self.unsubscribe(topic)
+            self.topics.pop(topic)
             Logger.unsubscribe(topic)
 
     # --------------------------------------------------------------------------
@@ -100,7 +92,8 @@ class Subscriber(Client):
 
     def subscribe(self, topic: str) -> None:
         self.subscriber.send_multipart(
-            [b'\x10' + self.client_id.encode('utf-8'), b'\x01' + topic.encode('utf-8')])
+            [b'\x10' + self.client_id.encode('utf-8'), b'\x01' + topic.encode('utf-8')]) 
+        print("SENT SUBSCRITPION")
 
     def unsubscribe(self, topic: str) -> None:
         self.subscriber.send_multipart(
@@ -111,14 +104,12 @@ class Subscriber(Client):
     # --------------------------------------------------------------------------
 
     def get(self, topic: str) -> None:
+        self.last_get = topic
         self.dealer.send_multipart(MessageParser.encode(['GET', topic]))
         Logger.get(self.client_id, topic)
 
-        self.poller.poll()
-        self.handle_msg()
-
     def handle_msg(self) -> None:
-        """ This function is responsible for receiving the topic messages and send the acks. """
+        """ This function receive a message of a topic and sends the ACK. """
 
         [topic, msg_id, content] = MessageParser.decode(
             self.dealer.recv_multipart())
@@ -134,23 +125,21 @@ class Subscriber(Client):
         self.dealer.send_multipart(
             MessageParser.encode(['ACK', topic, msg_id]))
 
-    def recv_status(self) -> None:
-        """
-        TODO receive message from the router
-        """
-        msg = self.dealer.recv()
-        print(msg)
-
     # --------------------------------------------------------------------------
     # Main function of subscriber
     # --------------------------------------------------------------------------
 
     def run(self):
         # TODO - if 'limit' arg is specified, unsubscribe after sending 'limit' GETs, otherwise use and infinite loop
-        for i in range(5):
+        while True:
             # Get random subscribed topic
             topic_idx = random.randint(0, len(self.topics)-1)
             topic = self.topics[topic_idx]
 
+            # Get message from a topic
             self.get(topic)
-        self.unsubscribe_topics()
+
+            # Send ACK
+            self.handle_msg()
+
+        #self.unsubscribe_topics()
