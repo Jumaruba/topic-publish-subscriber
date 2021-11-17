@@ -109,7 +109,7 @@ class ServerState:
 
     # --------------------------------------------------------------------------
     # Update data
-    # -------------------------------------------------------------------------- 
+    # --------------------------------------------------------------------------
 
     def update_client_last_message(self, client_id: int, topic: str, message_id: int) -> None:
         self.client_dict[client_id][topic] = message_id
@@ -125,6 +125,6 @@ class ServerState:
         self.client_dict[client_id].pop(topic)
 
         # TODO: remove messages if the client is the last one of the topic
-    
+
     def empty_waiting_list(self, topic: str) -> None:
         self.pending_clients[topic] = []

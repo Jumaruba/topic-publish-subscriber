@@ -25,7 +25,7 @@ class Publisher(Client):
     # --------------------------------------------------------------------------
 
     def __init__(self, messages_json: str) -> None:
-        super().__init__() 
+        super().__init__()
         self.init_sockets()
         self.get_messages(messages_json)
 
@@ -36,23 +36,23 @@ class Publisher(Client):
         f = open(messages_json + ".json")
         self.messages = json.load(f).get("topics")
         f.close()
-        
+
     def put(self, topic: str, msg_id: int, content: str) -> None:
         self.publisher.send_multipart([topic.encode('utf-8'), str(content).encode('utf-8'), str(msg_id).encode('utf-8')])
-        
+
         Logger.put_message(topic, msg_id, content)
-    
+
     # --------------------------------------------------------------------------
     # Main function of publisher
     # --------------------------------------------------------------------------
 
-    def run(self) -> None: 
+    def run(self) -> None:
         msg_id = 0
         n_topics = len(self.messages)
 
         ## TODO check if socket is connected before starting to send messages
-        
-        while True:  
+
+        while True:
             # Get random message from random topic
             topic_idx = random.randint(0, n_topics-1)
             topic = self.messages[topic_idx]

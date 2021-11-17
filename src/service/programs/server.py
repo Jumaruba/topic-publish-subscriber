@@ -47,6 +47,7 @@ class Server(Program):
             zmq.XSUB, SocketCreationFunction.BIND, '*:5556')
         self.frontend = self.create_socket(
             zmq.XPUB, SocketCreationFunction.BIND, '*:5557')
+        self.frontend.setsockopt(zmq.XPUB_VERBOSE, True)
         self.router = self.create_socket(
             zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
 
@@ -78,10 +79,10 @@ class Server(Program):
         publishers and adds the new subscription to the data structures
         """
         # Parse the message
-        message = self.frontend.recv_multipart() 
+        message = self.frontend.recv_multipart()
         Logger.new_message(message)
 
-        # This is a case of unsubscription by crash, then we do not send the unsubscribe. 
+        # This is a case of unsubscription by crash, then we do not send the unsubscribe.
         if len(message) < 2:
             return
 
@@ -134,7 +135,7 @@ class Server(Program):
 
         # Verify if client exists and is subscribed
         if self.state.check_client_subscription(client_id, topic) is None:
-            return 
+            return
         # Gets and verifies message
         message = self.state.message_for_client(client_id, topic)
 
@@ -154,14 +155,14 @@ class Server(Program):
             self.state.update_client_last_message(client_id, topic, message_id)
         else:
             Logger.warning(f"    {client_id} is not a subscriber of '{topic}'")
-        
+
         # current_pointer = self.client_dict[client_id][topic]
         # if message_id == (current_pointer + 1):
         #     self.client_dict[client_id][topic] = message_id
         # else:
         #     pass
             # TODO deal with mismatch message id in ACK (if we choose to do this other than re-send when no ACK is received)
-            
+
     # --------------------------------------------------------------------------
     # Main function of server
     # --------------------------------------------------------------------------

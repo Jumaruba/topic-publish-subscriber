@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import sys
 
-from programs.program import Program
-from programs.publisher import Publisher
-from programs.server import Server
-from programs.subscriber import Subscriber
+from .programs.program import Program
+from .programs.publisher import Publisher
+from .programs.server import Server
+from .programs.subscriber import Subscriber
 
 
 def print_error(message: str):
@@ -32,8 +32,8 @@ def get_program(args: list) -> Program | None:
 if __name__ == '__main__':
     "<program path> <subscriber|publisher|server>"
 
-    if len(sys.argv) < 2:  
-        print_error("Invalid number of arguments, expected: server | subscriber <messages> <id>| publisher <topics>")  
+    if len(sys.argv) < 2:
+        print_error("Invalid number of arguments, expected: server | subscriber <messages> <id>| publisher <topics>")
 
     program = get_program(sys.argv[1:])
     if program is None:

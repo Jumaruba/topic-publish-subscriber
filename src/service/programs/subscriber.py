@@ -33,31 +33,31 @@ class Subscriber(Client):
     # --------------------------------------------------------------------------
 
     def __init__(self, topics_json: str, client_id: int):
-        super().__init__() 
+        super().__init__()
         persistent_data_path = f"data/client_status_{client_id}.bin"
         current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(current_path, persistent_data_path)
-        self.client_id = client_id 
-        self.last_get = None 
-        self.messages_received = {} 
+        self.client_id = client_id
+        self.last_get = None
+        self.messages_received = {}
 
         self.create_sockets()
         self.get_topics(topics_json)
-        self.get_state() 
+        self.get_state()
         self.subscribe_topics()
-    
+
     def get_state(self):
         if os.path.exists(self.data_path):
             f = open(self.data_path, 'rb')
             self.messages_received = pickle.load(f)
-            f.close() 
+            f.close()
             self.handle_crash()
 
-    def handle_crash(self):  
+    def handle_crash(self):
         if self.last_get is not None:
             msg_id = self.messages_received[self.last_get]
             self.dealer.send_multipart(MessageParser.encode(["ACK", self.last_get, msg_id]))
-    
+
     def delete_state(self):
         pass
 
@@ -79,7 +79,7 @@ class Subscriber(Client):
         for topic in self.topics:
             self.subscribe(topic)
             Logger.subscribe(topic)
-    
+
     def unsubscribe_topics(self):
         for topic in self.topics:
             self.unsubscribe(topic)
@@ -92,7 +92,7 @@ class Subscriber(Client):
 
     def subscribe(self, topic: str) -> None:
         self.subscriber.send_multipart(
-            [b'\x10' + self.client_id.encode('utf-8'), b'\x01' + topic.encode('utf-8')]) 
+            [b'\x10' + self.client_id.encode('utf-8'), b'\x01' + topic.encode('utf-8')])
         print("SENT SUBSCRITPION")
 
     def unsubscribe(self, topic: str) -> None:
