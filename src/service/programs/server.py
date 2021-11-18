@@ -37,7 +37,7 @@ class Server(Program):
         self.init_sockets()
         self.create_poller()
         # How many messages must be received to the state be saved. 
-        self.save_frequency = 10
+        self.save_frequency = 5
         # State  
 
         current_data_path = os.path.abspath(os.getcwd())   
@@ -104,7 +104,7 @@ class Server(Program):
         if sub_type == 1:
             Logger.subscription(client_id, topic)
             # Forward to publishers and add to data structure
-            self.backend.send_multipart(message)
+            self.backend.send_multipart([message[1]])
             self.state.add_subscriber(client_id, topic)
             self.router.send_multipart(MessageParser.encode([client_id, "ACK"]))
         elif sub_type == 0:
@@ -133,10 +133,9 @@ class Server(Program):
         identity = int(message[0])
         message_type = message[1]
 
-        if message_type == "GET":
+        if message_type == "GET":  
             self.handle_get(identity, topic = message[2])
         elif message_type == "ACK": 
-            self.msg_counter -= 1                
             message_id = int(message[3])
             topic = message[2]
             self.handle_acknowledgement(identity, message_id, topic)
@@ -200,3 +199,5 @@ class Server(Program):
                 self.msg_counter = self.save_frequency
                 t = threading.Thread(target=self.state.save_state)
                 t.start()
+
+            self.msg_counter -= 1   
