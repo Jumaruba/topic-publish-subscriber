@@ -11,9 +11,11 @@ class ServerState(State):
     # --------------------------------------------------------------------------
 
     topic_dict: dict       # topic_dict[<topic>][<message id>] = message
-    client_dict: dict      # client_dict[<client id>][<topic>] = last message received
+    client_dict: dict      # client_dict[<client id>][<topic>] = last message received 
+    publish_dict: dict     # publish_dict[<topic>][<pub_id>] 
     pending_clients: dict  # pending_clients[<topic>] = list of clients waiting
     
+
     def __init__(self, data_path: str) -> None:
         super().__init__(data_path)
         self.topic_dict = {}

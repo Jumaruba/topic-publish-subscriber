@@ -32,27 +32,5 @@
          "Fully vaccinated people with breakthrough infections are less likely to develop serious illness from COVID19 than unvaccinated people." ,
          "People with COVID19 have reported a wide range of symptoms ." ,
          "A COVID19 test can help you determine if you have an infection." 
-    ]},
-    {"name": "goats",
-    "messages":[
-         "Goats were one of the first animals to be tamed by humans and were being herded 9000 years ago." ,
-         "Goat meat is the most consumed meat per capita worldwide." ,
-         "Goats have a gestation period (pregnancy) of five month." ,
-         "Goats are herd animals and will become depressed if kept without any goat companions." ,
-         "This unusual shape, shared by sheep and several other ungulates, gives them a fuller range of vision than humans and other animals with round pupils." ,
-         "The four chambered stomach helps goats digest tough roughage like grass and hay." ,
-         "Around the globe more people eat and drink meat and milk from goats than any other animal." 
-    ]},
-    {"name":"cats",
-    "messages":[
-         "The genome of a cat is 95 percent tiger, and they share many behaviors with their jungle ancestors.",
-         "Cats are believed to be the only mammals who do not taste sweetness.",
-         "Cats are nearsighted, but their peripheral vision and night vision are much better than that of humans.",
-         "Cats can jump up to six times their length.",
-         "The collarbone of a cat does not connect to their other bones.",
-         "Cats have an extra organ that allows them to taste scents on the air.",
-         "Cats have 230 bones, while humans only have 206.",
-         "The claws of the cats are all curve downward.",
-         "Cats are supposed to have 18 toes."
     ]}
 ]}

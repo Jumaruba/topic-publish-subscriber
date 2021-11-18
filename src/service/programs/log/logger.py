@@ -102,5 +102,11 @@ class Logger:
     # --------------------------------------------------------------------------
 
     @staticmethod
-    def put_message(topic: str, msg_id: int, content: str) -> None:
-        print(f"[SENT] t('{topic}') - msgid({msg_id}) - msg('{content}')")
+    def put_message(pub_id: str, topic: str, msg_id: int, content: str) -> None:
+        print(f"[SENT] id({pub_id}) - t('{topic}') - msgid({msg_id}) - msg('{content}')")
+
+    @staticmethod
+    def acknowledgement_pub(topic: str, message_id: int): 
+        Logger.add_color(Colors.GREEN)
+        print(f"[ACK] t('{topic}') - msgid({message_id})")
+        Logger.reset_colors()

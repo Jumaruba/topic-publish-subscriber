@@ -27,6 +27,8 @@ class Server(Program):
     frontend: zmq.Socket
     router: zmq.Socket
     state: ServerState
+    ack_server: zmq.Socket 
+
 
     # --------------------------------------------------------------------------
     # Initialization of server
@@ -57,9 +59,11 @@ class Server(Program):
         self.frontend = self.create_socket(
             zmq.XPUB, SocketCreationFunction.BIND, '*:5557')
         self.frontend.setsockopt(zmq.XPUB_VERBOSE, True)
+
         self.router = self.create_socket(
             zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
-
+        self.ack_server = self.create_socket(
+            zmq.PUB, SocketCreationFunction.BIND, '*:5552')
 
     # --------------------------------------------------------------------------
     #  Handling of messages
@@ -97,19 +101,18 @@ class Server(Program):
 
         sub_type = message[1][0]
 
-        # TODO - find a way to ignore auto sent unsubscribe
         client_id = int(message[0][1:])
         topic = message[1][1:].decode()
 
         if sub_type == 1:
             Logger.subscription(client_id, topic)
             # Forward to publishers and add to data structure
-            self.backend.send_multipart([message[1]])
+            self.backend.send(message[1])
             self.state.add_subscriber(client_id, topic)
             self.router.send_multipart(MessageParser.encode([client_id, "ACK"]))
         elif sub_type == 0:
             Logger.unsubscription(client_id, topic)
-            self.backend.send_multipart([message[1]])
+            self.backend.send(message[1])
             self.state.remove_subscriber(client_id, topic)
 
     def handle_publication(self) -> None:
@@ -121,7 +124,10 @@ class Server(Program):
         raw_message = self.backend.recv_multipart()
         Logger.new_message(raw_message)
 
-        topic, message = raw_message[0].decode(), raw_message[1].decode()
+        topic, pub_id, message, msg_id = MessageParser.decode(raw_message)
+        # Send the ACK to the server
+        self.ack_server.send_multipart(MessageParser.encode([pub_id, msg_id, topic])) 
+
         # TODO - save original message id to send ack to publisher
         message_id = self.state.add_message(topic, message)
         Logger.publication(topic, message_id, message)
