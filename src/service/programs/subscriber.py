@@ -104,7 +104,7 @@ class Subscriber(Client):
         Logger.topic_message(topic, msg_id, content)
         self.state.add_message(topic, msg_id)
         self.state.save_state()
-
+        print(self.state)
         self.dealer.send_multipart(
             MessageParser.encode(['ACK', topic, msg_id]))
 

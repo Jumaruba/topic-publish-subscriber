@@ -192,7 +192,8 @@ class Server(Program):
 
             # Receives message from subscribers
             if socks.get(self.router) == zmq.POLLIN:
-                self.handle_dealer() 
+                self.handle_dealer()
+                print(self.state)
 
             # Saves the state
             if self.msg_counter == 0:

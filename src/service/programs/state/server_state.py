@@ -1,6 +1,8 @@
 from __future__ import annotations
+import json 
 
 from .state import State
+
 
 class ServerState(State):
 
@@ -80,9 +82,10 @@ class ServerState(State):
         return next(iter(self.topic_dict[topic].keys()))
 
     def last_message_received_by_all(self, topic: str) -> int:
-        result = -1
+        result = float('inf')
         for topics in self.client_dict.values():
             result = min(result, topics[topic])
+            print("result", result)
         return result
 
     # --------------------------------------------------------------------------
@@ -148,8 +151,11 @@ class ServerState(State):
 
     def collect_garbage(self, topic: str) -> None:
         first_message = self.first_message(topic)
+        # TODO: this last message is always
         last_message = self.last_message_received_by_all(topic)
-
+        print("topic", topic)
+        print("last message", last_message)
+        print("first_message", first_message)
         # No messages to delete
         if last_message == -1:
             return
@@ -171,4 +177,21 @@ class ServerState(State):
             self.remove_topic(topic)
 
     def empty_waiting_list(self, topic: str) -> None:
-        self.pending_clients[topic] = []
+        self.pending_clients[topic] = [] 
+
+
+    def __str__(self):
+        str_topic_dict = json.dumps(self.topic_dict)
+        str_client_dict = json.dumps(self.client_dict)
+        str_pending_clients = json.dumps(self.pending_clients)
+        return f"""
+            [TOPICS] topic_dict[<topic>][<message_id>] = message
+            {str_topic_dict}
+
+            [CLIENTS] client_dict[<client_id>][<topic>] = last_message_received
+            {str_client_dict}
+
+            [PENDING CLIENTS] pending_client[<topic>] = list of clients waiting
+            {str_pending_clients}
+        """
+

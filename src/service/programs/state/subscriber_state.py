@@ -46,3 +46,19 @@ class SubscriberState(State):
             return SubscriberState(data_path, topics_json)
         return state
 
+
+    def __str__(self):
+        str_topics = json.dumps(self.topics)
+        str_messages_received = json.dumps(self.messages_received)
+        str_last_get = json.dumps(self.last_get)
+
+        return f""""
+            [TOPICS] subscribed topics
+            {str_topics}
+
+            [MESSAGES_RECEIVED] messages_received[<topic>] = message_id
+            {str_messages_received}
+
+            [LAST_GET] last topic that was requested with GET
+            {str_last_get}
+        """
