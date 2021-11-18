@@ -109,8 +109,8 @@ class Server(Program):
             self.router.send_multipart(MessageParser.encode([client_id, "ACK"]))
         elif sub_type == 0:
             Logger.unsubscription(client_id, topic)
-            self.backend.send_multipart(message[1])
-            self.state.remove_subscriber()
+            self.backend.send_multipart([message[1]])
+            self.state.remove_subscriber(client_id, topic)
 
     def handle_publication(self) -> None:
         """
@@ -193,7 +193,7 @@ class Server(Program):
             # Receives message from subscribers
             if socks.get(self.router) == zmq.POLLIN:
                 self.handle_dealer()
-                print(self.state)
+                #print(self.state)
 
             # Saves the state
             if self.msg_counter == 0:

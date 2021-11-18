@@ -68,10 +68,11 @@ class ServerState(State):
         return self.pending_clients[topic]
 
     def is_unsubscribed_topic(self, topic: str) -> bool:
-        for _, topics in self.client_dict:
-            if topic in topics:
+        for client in self.client_dict.keys():
+            client_topics = self.client_dict[client].keys()
+            if topic in client_topics:
                 return True
-        return False
+        return False 
 
     def is_unsubscribed_client(self, client_id: str) -> bool:
         return self.client_dict[client_id] == {}
@@ -85,7 +86,6 @@ class ServerState(State):
         result = float('inf')
         for topics in self.client_dict.values():
             result = min(result, topics[topic])
-            print("result", result)
         return result
 
     # --------------------------------------------------------------------------
@@ -153,9 +153,7 @@ class ServerState(State):
         first_message = self.first_message(topic)
         # TODO: this last message is always
         last_message = self.last_message_received_by_all(topic)
-        print("topic", topic)
-        print("last message", last_message)
-        print("first_message", first_message)
+
         # No messages to delete
         if last_message == -1:
             return
