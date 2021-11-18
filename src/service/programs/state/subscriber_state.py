@@ -10,16 +10,15 @@ class SubscriberState(State):
     # Initialization
     # --------------------------------------------------------------------------
 
-    topics: list
-    messages_received: dict  # messages_received[topic] = message_id
-    last_get: str | None
-    data_persitence_file: str
+    topics: list               # subscribed topics
+    messages_received: dict    # messages_received[topic] = message_id
+    last_get: str | None       # last topic that was requested with GET
 
     def __init__(self, data_path: str, topics_json: str) -> None:
         super().__init__(data_path)
-        self.last_get = None
-        self.messages_received = {}
         self.topics = self.get_topics(topics_json)
+        self.messages_received = {}
+        self.last_get = None
 
     def get_topics(self, topics_json: str):
         f = open(topics_json + ".json")
@@ -27,14 +26,23 @@ class SubscriberState(State):
         f.close()
         return topics
 
+    def is_new_subscriber(self):
+        return self.last_get is None
+
     def add_message(self, topic: str, msg_id: int):
         self.messages_received[topic] = msg_id
 
+    def get_last_ack(self):
+        msg_id = self.messages_received[self.last_get]
+        return ["ACK", self.last_get, msg_id]
+
+    def set_last_get(self, topic: str):
+        self.last_get = topic
+
     @staticmethod
-    def read_state(path: str, topics_json: str):
-        state = State.get_state_from_file(path)
+    def read_state(data_path: str, topics_json: str):
+        state = State.get_state_from_file(data_path)
         if state is None:
             return SubscriberState(data_path, topics_json)
-
-
+        return state
 

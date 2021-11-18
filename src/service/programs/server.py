@@ -41,7 +41,7 @@ class Server(Program):
         # State  
 
         current_data_path = os.path.abspath(os.getcwd())   
-        persistent_data_path = f"/data/server_status.bin" 
+        persistent_data_path = f"/data/server_status.pkl" 
         data_path = current_data_path + persistent_data_path
         self.state = ServerState.read_state(data_path)
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .state import State
 
-
 class ServerState(State):
 
     # --------------------------------------------------------------------------
@@ -24,6 +23,7 @@ class ServerState(State):
         state = State.get_state_from_file(data_path)
         if state is None:
             return ServerState(data_path)
+        return state
 
     # --------------------------------------------------------------------------
     # Get data

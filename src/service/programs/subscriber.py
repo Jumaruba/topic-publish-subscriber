@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import os
-
 import zmq
-import pickle
 import random
 from time import sleep
 import json
@@ -34,16 +32,21 @@ class Subscriber(Client):
 
     def __init__(self, topics_json: str, client_id: int):
         super().__init__()
+
+        # State
         current_data_path = os.path.abspath(os.getcwd())   
-        persistent_data_path = f"/data/client_status_{client_id}.bin" 
+        persistent_data_path = f"/data/client_status_{client_id}.pkl" 
         data_path = current_data_path + persistent_data_path
+        self.state = SubscriberState.read_state(data_path, topics_json)
 
         self.client_id = client_id
-        self.state = SubscriberState(data_path, topics_json)
-
         self.create_sockets()
-        self.subscribe_topics()
 
+        # Subscribe if the subscriber is new, handle crash otherwise
+        if self.state.is_new_subscriber():
+            self.subscribe_topics()
+        else:
+            self.handle_crash()
 
     def create_sockets(self) -> None:
         self.subscriber = self.context.socket(zmq.XSUB)
@@ -52,15 +55,6 @@ class Subscriber(Client):
         self.dealer = self.context.socket(zmq.DEALER)
         self.dealer.setsockopt_string(zmq.IDENTITY, self.client_id)
         self.dealer.connect("tcp://localhost:5554")
-
-    # --------------------------------------------------------------------------
-    # Handle Crash
-    # --------------------------------------------------------------------------
-
-    def handle_crash(self):
-        if self.state.last_get is not None:
-            msg_id = self.state.messages_received[self.state.last_get]
-            self.dealer.send_multipart(MessageParser.encode(["ACK", self.state.last_get, msg_id]))
 
     # --------------------------------------------------------------------------
     # Subscrition functions
@@ -90,9 +84,14 @@ class Subscriber(Client):
     # --------------------------------------------------------------------------
 
     def get(self, topic: str) -> None:
-        self.state.last_get = topic
+        self.state.set_last_get(topic)
         self.dealer.send_multipart(MessageParser.encode(['GET', topic]))
         Logger.get(self.client_id, topic)
+
+    def handle_crash(self):
+        """ Send ACK to the last topic requested with a GET before crashing """
+        message = self.state.get_last_ack()
+        self.dealer.send_multipart(MessageParser.encode(message))
 
     def handle_msg(self) -> None:
         """ This function receive a message of a topic and sends the ACK. """
@@ -101,10 +100,7 @@ class Subscriber(Client):
             self.dealer.recv_multipart())
 
         Logger.topic_message(topic, msg_id, content)
-
         self.state.add_message(topic, msg_id)
-        
-        # TODO - change this in order to save the SubscriberState(de x em x tempo) 
         self.state.save_state()
 
         self.dealer.send_multipart(
@@ -116,6 +112,7 @@ class Subscriber(Client):
 
     def run(self):
         # TODO - if 'limit' arg is specified, unsubscribe after sending 'limit' GETs, otherwise use and infinite loop
+
         while True:
             # Get random subscribed topic
             topic_idx = random.randint(0, len(self.state.topics)-1)
