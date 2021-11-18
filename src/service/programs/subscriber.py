@@ -64,6 +64,8 @@ class Subscriber(Client):
         for topic in self.state.topics:
             self.subscribe(topic)
             Logger.subscribe(topic)
+            ack = self.dealer.recv_multipart()
+            print(ack)
 
     def unsubscribe_topics(self):
         for topic in self.state.topics:

@@ -106,6 +106,7 @@ class Server(Program):
             # Forward to publishers and add to data structure
             self.backend.send_multipart(message)
             self.state.add_subscriber(client_id, topic)
+            self.router.send_multipart(MessageParser.encode([client_id, "ACK"]))
         elif sub_type == 0:
             Logger.unsubscription(client_id, topic)
             self.backend.send_multipart(message[1])
@@ -145,6 +146,7 @@ class Server(Program):
 
         # Verify if client exists and is subscribed
         if self.state.check_client_subscription(client_id, topic) is None:
+            # TODO - Send error message?
             return
         # Gets and verifies message
         message = self.state.message_for_client(client_id, topic)
