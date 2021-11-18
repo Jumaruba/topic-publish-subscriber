@@ -24,7 +24,6 @@ class Server(Program):
     # Sockets
     poller: zmq.Poller
     backend: zmq.Socket
-    frontend: zmq.Socket
     router: zmq.Socket
     state: ServerState
     ack_server: zmq.Socket 
@@ -49,16 +48,12 @@ class Server(Program):
 
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
-        self.poller.register(self.frontend, zmq.POLLIN)
         self.poller.register(self.backend, zmq.POLLIN)
         self.poller.register(self.router, zmq.POLLIN)
 
     def init_sockets(self) -> None:
         self.backend = self.create_socket(
             zmq.XSUB, SocketCreationFunction.BIND, '*:5556')
-        self.frontend = self.create_socket(
-            zmq.XPUB, SocketCreationFunction.BIND, '*:5557')
-        self.frontend.setsockopt(zmq.XPUB_VERBOSE, True)
 
         self.router = self.create_socket(
             zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
@@ -86,35 +81,6 @@ class Server(Program):
         Logger.success()
         self.state.empty_waiting_list(topic)
 
-    def handle_subscription(self) -> None:
-        """
-        Reads the message from the frontend socket, forwards it to the
-        publishers and adds the new subscription to the data structures
-        """
-        # Parse the message
-        message = self.frontend.recv_multipart()
-        Logger.new_message(message)
-
-        # This is a case of unsubscription by crash, then we do not send the unsubscribe.
-        if len(message) < 2:
-            return
-
-        sub_type = message[1][0]
-
-        client_id = int(message[0][1:])
-        topic = message[1][1:].decode()
-
-        if sub_type == 1:
-            Logger.subscription(client_id, topic)
-            # Forward to publishers and add to data structure
-            self.backend.send(message[1])
-            self.state.add_subscriber(client_id, topic)
-            self.router.send_multipart(MessageParser.encode([client_id, "ACK"]))
-        elif sub_type == 0:
-            Logger.unsubscription(client_id, topic)
-            self.backend.send(message[1])
-            self.state.remove_subscriber(client_id, topic)
-
     def handle_publication(self) -> None:
         """
         Reads the message from the backend socket, creates a new id for it,
@@ -138,13 +104,22 @@ class Server(Program):
         message = MessageParser.decode(self.router.recv_multipart())
         identity = int(message[0])
         message_type = message[1]
+        topic = message[2]
 
         if message_type == "GET":  
-            self.handle_get(identity, topic = message[2])
+            self.handle_get(identity, topic)
         elif message_type == "ACK": 
             message_id = int(message[3])
-            topic = message[2]
             self.handle_acknowledgement(identity, message_id, topic)
+        elif message_type == "SUB":         # Testing router/dealer for subscription (missing unsubscription)
+            Logger.subscription(identity, topic)
+            # Forward to publishers and add to data structure
+            subscribe_msg = b'\x01' + topic.encode('utf-8')
+            self.backend.send(subscribe_msg)
+            self.state.add_subscriber(identity, topic)
+        elif message_type == "UNSUB": 
+            Logger.unsubscription(identity, topic)
+            self.state.remove_subscriber(identity, topic)
 
     def handle_get(self, client_id: int, topic: str) -> None:
         Logger.request(client_id, topic)
@@ -187,10 +162,6 @@ class Server(Program):
         while True:
             socks = dict(self.poller.poll())
 
-            # Receives subscription
-            if socks.get(self.frontend) == zmq.POLLIN:
-                self.handle_subscription()
-
             # Receives content from publishers
             if socks.get(self.backend) == zmq.POLLIN:
                 self.handle_publication()
@@ -198,7 +169,6 @@ class Server(Program):
             # Receives message from subscribers
             if socks.get(self.router) == zmq.POLLIN:
                 self.handle_dealer()
-                #print(self.state)
 
             # Saves the state
             if self.msg_counter == 0:

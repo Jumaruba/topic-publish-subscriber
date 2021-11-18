@@ -73,8 +73,8 @@ class ServerState(State):
         for client in self.client_dict.keys():
             client_topics = self.client_dict[client].keys()
             if topic in client_topics:
-                return True
-        return False 
+                return False
+        return True
 
     def is_unsubscribed_client(self, client_id: str) -> bool:
         return self.client_dict[client_id] == {}
@@ -87,6 +87,7 @@ class ServerState(State):
     def last_message_received_by_all(self, topic: str) -> int:
         result = float('inf')
         for topics in self.client_dict.values():
+            # TODO - fix this (issue #9)
             result = min(result, topics[topic])
         return result
 
@@ -165,7 +166,7 @@ class ServerState(State):
 
     def remove_topic(self, topic: str) -> None:
         self.topic_dict.pop(topic)
-        self.pending_clients(topic)
+        self.pending_clients.pop(topic)
 
     def remove_subscriber(self, client_id: int, topic: str) -> None:
         """

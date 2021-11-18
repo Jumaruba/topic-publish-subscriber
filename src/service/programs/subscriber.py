@@ -49,9 +49,6 @@ class Subscriber(Client):
             self.handle_crash()
 
     def create_sockets(self) -> None:
-        self.subscriber = self.context.socket(zmq.XSUB)
-        self.subscriber.connect("tcp://localhost:5557")
-
         self.dealer = self.context.socket(zmq.DEALER)
         self.dealer.setsockopt_string(zmq.IDENTITY, self.client_id)
         self.dealer.connect("tcp://localhost:5554")
@@ -64,8 +61,6 @@ class Subscriber(Client):
         for topic in self.state.topics:
             self.subscribe(topic)
             Logger.subscribe(topic)
-            ack = self.dealer.recv_multipart()
-            print(ack)
 
     def unsubscribe_topics(self):
         for topic in self.state.topics:
@@ -75,12 +70,11 @@ class Subscriber(Client):
             Logger.unsubscribe(topic)
 
     def subscribe(self, topic: str) -> None:
-        self.subscriber.send_multipart(
-            [b'\x10' + self.client_id.encode('utf-8'), b'\x01' + topic.encode('utf-8')])
+        self.dealer.send_multipart(MessageParser.encode(["SUB", topic]))
 
     def unsubscribe(self, topic: str) -> None:
-        self.subscriber.send_multipart(
-            [b'\x10' + self.client_id.encode('utf-8'), b'\x00' + topic.encode('utf-8')])
+        self.dealer.send_multipart(MessageParser.encode(["UNSUB", topic]))
+
 
     # --------------------------------------------------------------------------
     # Message handling functions
