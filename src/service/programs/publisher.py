@@ -19,7 +19,7 @@ class Publisher(Client):
 
     publisher: zmq.Socket
     messages: list              # list of messages to send
-    ack_topic_dict: dict            # topic_dict[topic] = message_id  # confirmed puts
+    ack_topic_dict: dict         # topic_dict[topic] = message_id  # confirmed puts
     last_put: str               # topic published in the last put call
     put_topic_dict: dict         # last_topic_msg[topic] = message_id   # last message sent from each topic
     ack_server: zmq.Socket      
@@ -76,7 +76,7 @@ class Publisher(Client):
         
         # Get id of the next message message to send
         msg_id = self.get_next_message(topic["name"])
-        content = topic["messages"][msg_id]
+        content = topic["messages"][msg_id % len(topic["messages"])]
 
         self.put_topic_dict[topic["name"]] = msg_id
         self.put(topic["name"] , msg_id, str(content))
