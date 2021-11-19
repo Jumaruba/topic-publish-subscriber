@@ -87,9 +87,9 @@ class ServerState(State):
     def last_message_received_by_all(self, topic: str) -> int:
         result = float('inf')
         for topics in self.client_dict.values():
-            pass
             # TODO - fix this (issue #9)
-            #result = min(result, topics[topic])
+            if topic in topics:
+                result = min(result, topics[topic])
         return result
 
     # --------------------------------------------------------------------------
@@ -154,8 +154,8 @@ class ServerState(State):
             self.topic_dict[topic].pop(key)
 
     def collect_garbage(self, topic: str) -> None:
+
         first_message = self.first_message(topic)
-        # TODO: this last message is always
         last_message = self.last_message_received_by_all(topic)
 
         # No messages to delete

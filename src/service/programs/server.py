@@ -90,11 +90,11 @@ class Server(Program):
         raw_message = self.backend.recv_multipart()
         Logger.new_message(raw_message)
 
-        topic, pub_id, message, msg_id = MessageParser.decode(raw_message)
+        topic, pub_id, message, pub_msg_id = MessageParser.decode(raw_message)
         # Send the ACK to the server
-        self.ack_server.send_multipart(MessageParser.encode([pub_id, msg_id, topic])) 
+        # TODO - save original message id and send ack to publisher
+        self.ack_server.send_multipart(MessageParser.encode([pub_id, pub_msg_id, topic])) 
 
-        # TODO - save original message id to send ack to publisher
         message_id = self.state.add_message(topic, message)
         Logger.publication(topic, message_id, message)
 
