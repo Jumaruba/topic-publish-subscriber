@@ -43,8 +43,9 @@ class Subscriber(Client):
         self.create_sockets()
 
         # Subscribe if the subscriber is new, handle crash otherwise
-        if self.state.is_new_subscriber():
+        if self.state.is_new_subscriber(data_path):
             self.subscribe_topics()
+            self.state.save_state()
         else:
             self.handle_crash()
 
@@ -88,7 +89,8 @@ class Subscriber(Client):
     def handle_crash(self):
         """ Send ACK to the last topic requested with a GET before crashing """
         message = self.state.get_last_ack()
-        self.dealer.send_multipart(MessageParser.encode(message))
+        if message is not None:
+            self.dealer.send_multipart(MessageParser.encode(message))
 
     def handle_msg(self) -> None:
         """ This function receive a message of a topic and sends the ACK. """

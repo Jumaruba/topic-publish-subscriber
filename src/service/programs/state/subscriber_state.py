@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from .state import State
 
@@ -26,13 +27,15 @@ class SubscriberState(State):
         f.close()
         return topics
 
-    def is_new_subscriber(self):
-        return self.last_get is None
+    def is_new_subscriber(self, data_path: str):
+        return not os.path.isfile(data_path)
 
     def add_message(self, topic: str, msg_id: int):
         self.messages_received[topic] = msg_id
 
     def get_last_ack(self):
+        if self.last_get is None:
+            return None
         msg_id = self.messages_received[self.last_get]
         return ["ACK", self.last_get, msg_id]
 
