@@ -87,8 +87,9 @@ class ServerState(State):
     def last_message_received_by_all(self, topic: str) -> int:
         result = float('inf')
         for topics in self.client_dict.values():
+            pass
             # TODO - fix this (issue #9)
-            result = min(result, topics[topic])
+            #result = min(result, topics[topic])
         return result
 
     # --------------------------------------------------------------------------

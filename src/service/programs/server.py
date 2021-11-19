@@ -119,6 +119,8 @@ class Server(Program):
             self.state.add_subscriber(identity, topic)
         elif message_type == "UNSUB": 
             Logger.unsubscription(identity, topic)
+            unsubscribe_msg = b'\x00' + topic.encode('utf-8')
+            self.backend.send(unsubscribe_msg)
             self.state.remove_subscriber(identity, topic)
 
     def handle_get(self, client_id: int, topic: str) -> None:
@@ -169,6 +171,7 @@ class Server(Program):
             # Receives message from subscribers
             if socks.get(self.router) == zmq.POLLIN:
                 self.handle_dealer()
+                #print(self.state)
 
             # Saves the state
             if self.msg_counter == 0:
