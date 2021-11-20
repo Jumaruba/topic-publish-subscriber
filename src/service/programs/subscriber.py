@@ -43,15 +43,13 @@ class Subscriber(Client):
         self.create_sockets()
 
         # Subscribe if the subscriber is new, handle crash otherwise
-        if self.state.is_new_subscriber():
+        if self.state.is_new_subscriber(data_path):
             self.subscribe_topics()
+            self.state.save_state()
         else:
             self.handle_crash()
 
     def create_sockets(self) -> None:
-        self.subscriber = self.context.socket(zmq.XSUB)
-        self.subscriber.connect("tcp://localhost:5557")
-
         self.dealer = self.context.socket(zmq.DEALER)
         self.dealer.setsockopt_string(zmq.IDENTITY, self.client_id)
         self.dealer.connect("tcp://localhost:5554")
@@ -68,16 +66,16 @@ class Subscriber(Client):
     def unsubscribe_topics(self):
         for topic in self.state.topics:
             self.unsubscribe(topic)
-            self.state.topics.pop(topic)
+            # NOTE if we are doing unsubsribe we should delete the state
+            #self.state.topics.remove(topic)
             Logger.unsubscribe(topic)
 
     def subscribe(self, topic: str) -> None:
-        self.subscriber.send_multipart(
-            [b'\x10' + self.client_id.encode('utf-8'), b'\x01' + topic.encode('utf-8')])
+        self.dealer.send_multipart(MessageParser.encode(["SUB", topic]))
 
     def unsubscribe(self, topic: str) -> None:
-        self.subscriber.send_multipart(
-            [b'\x10' + self.client_id.encode('utf-8'), b'\x00' + topic.encode('utf-8')])
+        self.dealer.send_multipart(MessageParser.encode(["UNSUB", topic]))
+
 
     # --------------------------------------------------------------------------
     # Message handling functions
@@ -91,7 +89,8 @@ class Subscriber(Client):
     def handle_crash(self):
         """ Send ACK to the last topic requested with a GET before crashing """
         message = self.state.get_last_ack()
-        self.dealer.send_multipart(MessageParser.encode(message))
+        if message is not None:
+            self.dealer.send_multipart(MessageParser.encode(message))
 
     def handle_msg(self) -> None:
         """ This function receive a message of a topic and sends the ACK. """
@@ -102,7 +101,6 @@ class Subscriber(Client):
         Logger.topic_message(topic, msg_id, content)
         self.state.add_message(topic, msg_id)
         self.state.save_state()
-
         self.dealer.send_multipart(
             MessageParser.encode(['ACK', topic, msg_id]))
 
@@ -113,7 +111,7 @@ class Subscriber(Client):
     def run(self):
         # TODO - if 'limit' arg is specified, unsubscribe after sending 'limit' GETs, otherwise use and infinite loop
 
-        while True:
+        for i in range(5):
             # Get random subscribed topic
             topic_idx = random.randint(0, len(self.state.topics)-1)
             topic = self.state.topics[topic_idx]
@@ -124,4 +122,4 @@ class Subscriber(Client):
             # Send ACK
             self.handle_msg()
 
-        #self.unsubscribe_topics()
+        self.unsubscribe_topics()

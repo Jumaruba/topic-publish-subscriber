@@ -1,6 +1,8 @@
 from __future__ import annotations
+import json 
 
 from .state import State
+
 
 class ServerState(State):
 
@@ -9,9 +11,11 @@ class ServerState(State):
     # --------------------------------------------------------------------------
 
     topic_dict: dict       # topic_dict[<topic>][<message id>] = message
-    client_dict: dict      # client_dict[<client id>][<topic>] = last message received
+    client_dict: dict      # client_dict[<client id>][<topic>] = last message received 
+    publish_dict: dict     # publish_dict[<topic>][<pub_id>] 
     pending_clients: dict  # pending_clients[<topic>] = list of clients waiting
     
+
     def __init__(self, data_path: str) -> None:
         super().__init__(data_path)
         self.topic_dict = {}
@@ -66,10 +70,11 @@ class ServerState(State):
         return self.pending_clients[topic]
 
     def is_unsubscribed_topic(self, topic: str) -> bool:
-        for _, topics in self.client_dict:
-            if topic in topics:
-                return True
-        return False
+        for client in self.client_dict.keys():
+            client_topics = self.client_dict[client].keys()
+            if topic in client_topics:
+                return False
+        return True
 
     def is_unsubscribed_client(self, client_id: str) -> bool:
         return self.client_dict[client_id] == {}
@@ -80,9 +85,10 @@ class ServerState(State):
         return next(iter(self.topic_dict[topic].keys()))
 
     def last_message_received_by_all(self, topic: str) -> int:
-        result = -1
+        result = float('inf')
         for topics in self.client_dict.values():
-            result = min(result, topics[topic])
+            if topic in topics:
+                result = min(result, topics[topic])
         return result
 
     # --------------------------------------------------------------------------
@@ -147,6 +153,7 @@ class ServerState(State):
             self.topic_dict[topic].pop(key)
 
     def collect_garbage(self, topic: str) -> None:
+
         first_message = self.first_message(topic)
         last_message = self.last_message_received_by_all(topic)
 
@@ -159,7 +166,7 @@ class ServerState(State):
 
     def remove_topic(self, topic: str) -> None:
         self.topic_dict.pop(topic)
-        self.pending_clients(topic)
+        self.pending_clients.pop(topic)
 
     def remove_subscriber(self, client_id: int, topic: str) -> None:
         """
@@ -171,4 +178,21 @@ class ServerState(State):
             self.remove_topic(topic)
 
     def empty_waiting_list(self, topic: str) -> None:
-        self.pending_clients[topic] = []
+        self.pending_clients[topic] = [] 
+
+
+    def __str__(self):
+        str_topic_dict = json.dumps(self.topic_dict)
+        str_client_dict = json.dumps(self.client_dict)
+        str_pending_clients = json.dumps(self.pending_clients)
+        return f"""
+            [TOPICS] topic_dict[<topic>][<message_id>] = message
+            {str_topic_dict}
+
+            [CLIENTS] client_dict[<client_id>][<topic>] = last_message_received
+            {str_client_dict}
+
+            [PENDING CLIENTS] pending_client[<topic>] = list of clients waiting
+            {str_pending_clients}
+        """
+

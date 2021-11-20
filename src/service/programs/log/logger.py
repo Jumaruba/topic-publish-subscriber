@@ -1,7 +1,22 @@
 import sys
 
+class Colors:
+    RESET_STYLE = '\033[0;0m'
+    CYAN = '\033[0;36m'
+    YELLOW = '\033[1;33m' 
+    GREEN = '\033[1;32m'
+    RED = '\033[0;31m'
+    PURPLE = '\033[0;35m'
+
 class Logger:
 
+    @staticmethod
+    def add_color(color: str) -> None:
+        sys.stdout.write(color)
+
+    @staticmethod
+    def reset_colors() -> None: 
+        sys.stdout.write('\033[0;0m')
     # --------------------------------------------------------------------------
     # Server logs
     # --------------------------------------------------------------------------
@@ -15,23 +30,29 @@ class Logger:
 
     @staticmethod
     def subscription(client_id: int, topic: str) -> None:
-        print(f"SUB {client_id} - '{topic}'")
+        Logger.add_color(Colors.CYAN)
+        print(f"[SUB] uid({client_id}) - t('{topic}')")
+        Logger.reset_colors()
 
     @staticmethod
     def unsubscription(client_id: int, topic: str) -> None:
-        print(f"UNSUB {client_id} - '{topic}'")
+        Logger.add_color(Colors.CYAN)
+        print(f"[UNSUB] uid({client_id}) - t('{topic}')") 
+        Logger.reset_colors()
 
     @staticmethod
     def publication(topic: str, message_id: int, message: str):
-        print(f"PUT '{topic}' - {message_id} - '{message}'")
+        print(f"[PUT] t('{topic}') - msgid({message_id}) - msg('{message}')")
 
     @staticmethod
     def request(client_id: int, topic: str):
-        print(f"GET {client_id} - '{topic}'")
+        print(f"[GET] uid({client_id}) - t('{topic}')")
 
     @staticmethod
-    def acknowledgement(client_id: int, topic: str, message_id: int):
-        print(f"ACK {client_id} - '{topic}' - {message_id}")
+    def acknowledgement(client_id: int, topic: str, message_id: int): 
+        Logger.add_color(Colors.GREEN)
+        print(f"[ACK] uid({client_id}) - t('{topic}') - msgid({message_id})")
+        Logger.reset_colors()
 
     @staticmethod
     def info(message="", end="\n"):
@@ -39,15 +60,15 @@ class Logger:
 
     @staticmethod
     def success(message="", end="\n"):
-        sys.stdout.write('\033[1;32m')
+        Logger.add_color(Colors.GREEN)
         print(message, end=end)
-        sys.stdout.write('\033[0;0m')
+        Logger.reset_colors()
 
     @staticmethod
     def warning(message):
-        sys.stdout.write('\033[1;33m')
+        Logger.add_color(Colors.YELLOW)
         print(message)
-        sys.stdout.write('\033[0;0m')
+        Logger.reset_colors()
 
     # --------------------------------------------------------------------------
     # Subscriber logs
@@ -55,24 +76,37 @@ class Logger:
 
     @staticmethod
     def topic_message(topic: str, msg_id: int, content: str) -> None:
-        print(f"[RECEIVED] {topic}-{msg_id} :: {content}")
+        Logger.add_color(Colors.GREEN)
+        print(f"[RCV] t('{topic}') - msgid({msg_id}) - msg('{content}')")
+        Logger.reset_colors()
 
     @staticmethod
     def get(identity: int, topic: str) -> None:
-        print(f"[GET] {topic} :: {identity} ")
+        print(f"[GET] uid({identity}) - t('{topic}') ")
 
     @staticmethod
-    def subscribe(topic: str) -> None:
-        print(f"[SUBSCRIBE] {topic}")
+    def subscribe(topic: str) -> None: 
+        Logger.add_color(Colors.CYAN)
+        print(f"[SUB] t'({topic}')")
+        Logger.reset_colors()
 
     @staticmethod
     def unsubscribe(topic: str) -> None:
-        print(f"[UNSUBSCRIBE] {topic}")
+        Logger.add_color(Colors.CYAN)
+        print(f"[UNSUB] t('{topic}')")
+        Logger.reset_colors()
+
 
     # --------------------------------------------------------------------------
     # Publisher logs
     # --------------------------------------------------------------------------
 
     @staticmethod
-    def put_message(topic: str, msg_id: int, content: str) -> None:
-        print(f"[SENT] {topic}-{msg_id} :: {content}")
+    def put_message(pub_id: str, topic: str, msg_id: int, content: str) -> None:
+        print(f"[SENT] id({pub_id}) - t('{topic}') - msgid({msg_id}) - msg('{content}')")
+
+    @staticmethod
+    def acknowledgement_pub(topic: str, message_id: int): 
+        Logger.add_color(Colors.GREEN)
+        print(f"[ACK] t('{topic}') - msgid({message_id})")
+        Logger.reset_colors()
