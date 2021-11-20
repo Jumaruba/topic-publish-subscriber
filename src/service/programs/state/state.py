@@ -8,7 +8,8 @@ class State:
 
     def save_state(self):  
         f = open(self.data_path, 'wb+')        
-        pickle.dump(self, f)
+        pickle.dump(self, f) 
+        f.close()
 
     @staticmethod
     def get_state_from_file(data_path: str): 
@@ -18,4 +19,4 @@ class State:
             f.close() 
             return state
         return None
-        
+    

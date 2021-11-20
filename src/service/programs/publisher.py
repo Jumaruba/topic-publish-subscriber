@@ -1,3 +1,4 @@
+import pickle
 import random
 import time
 import json
@@ -10,6 +11,8 @@ from .log.logger import Logger
 from .client import Client
 from .program import SocketCreationFunction
 from .message.message_parser import MessageParser
+import os 
+
 
 class Publisher(Client):
 
@@ -19,9 +22,8 @@ class Publisher(Client):
 
     publisher: zmq.Socket
     messages: dict                  # List of messages to send
-    put_topic_dict: dict            # Last_topic_msg[topic] = message_id   # last message sent from each topic
     fault_server: zmq.Socket        # Error messages that comes from the server
-
+    put_topic_dict: dict            # Last_topic_msg[topic] = message_id   # last message sent from each topic
     topic_names: list               # Possible topics
     n_topics: int                   # Number of topics
 
@@ -33,8 +35,9 @@ class Publisher(Client):
     def __init__(self, messages_json: str) -> None:
         super().__init__() 
         # TODO: change to receive id from the input
-        self.id = str(random.randint(0, 8000))
+        self.id = str(2) #str(random.randint(0, 8000))
         self.put_topic_dict = {} 
+        self.get_state()
 
         self.init_sockets()
         self.get_messages(messages_json) 
@@ -91,6 +94,24 @@ class Publisher(Client):
             return 0
         return self.put_topic_dict[topic] + 1
     
+
+    def save_state(self) -> None:
+        current_path = os.path.dirname(__file__) + "/../../data/"
+        data_path = os.path.join(current_path, f"publisher_{self.id}.pkl")
+        f = open(data_path, "wb+")
+        pickle.dump(self.put_topic_dict, f)
+        f.close()
+
+
+    def get_state(self) -> None:
+        current_path = os.path.dirname(__file__) + "/../../data/"
+        data_path = os.path.join(current_path, f"publisher_{self.id}.pkl")
+        if os.path.exists(data_path):
+            f = open(data_path, "rb") 
+            self.put_topic_dict = pickle.load(f)
+            f.close() 
+
+
     # --------------------------------------------------------------------------
     # Main function of publisher
     # --------------------------------------------------------------------------
@@ -108,3 +129,5 @@ class Publisher(Client):
             self.handle_fault()
 
             time.sleep(2)
+            # TODO: save with some frequency
+            self.save_state()

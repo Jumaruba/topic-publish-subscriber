@@ -70,3 +70,8 @@ class SubscriberState(State):
             [LAST_GET] last topic that was requested with GET
             {str_last_get}
         """
+
+    def delete(self):
+        if os.path.exists(self.data_path):
+            os.remove(self.data_path)
+            print("=== State deleted ===")

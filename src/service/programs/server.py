@@ -92,23 +92,31 @@ class Server(Program):
         Logger.new_message(raw_message)
 
         topic, pub_id, message, pub_msg_id = MessageParser.decode(raw_message)
-        
-        # Handle missing publications
-        self.handle_pub_fault(int(pub_id), topic, int(pub_msg_id))  
 
-        message_id = self.state.add_message(topic, message)
-        Logger.publication(topic, message_id, message)
+        # Handle missing/duplicate publications 
+        fault_message = self.handle_pub_fault(int(pub_id), topic, int(pub_msg_id))  
+
+        if fault_message:
+            message_id = self.state.add_message(topic, message)
+            Logger.publication(topic, message_id, message)
 
         self.update_pending_clients(topic)
 
-    def handle_pub_fault(self, pub_id: int, topic: str, pub_msg_id: int) -> None: 
+    def handle_pub_fault(self, pub_id: int, topic: str, pub_msg_id: int) -> bool:  
+        """
+        Return true if not duplicated (if the message is to be resend to the subscriber).
+        Send Fault Message to publishers if a message is missing.
+        """
         pub_topic_state = self.state.get_publish_dict(pub_id, topic)
 
-        # Check if the message is in the waiting list and remove it if it is
+        # Check if the message is in the waiting list and remove if in waiting list.
         if pub_topic_state.is_waiting(pub_msg_id):
             # Remove from waiting list
             pub_topic_state.remove_waiting(pub_msg_id)
-            return 
+            return True
+        # Checks if duplicated.
+        elif pub_msg_id <= pub_topic_state.last_msg: 
+            return False
 
         if pub_msg_id - pub_topic_state.last_msg > 1:
             for lost_msg_id in range(pub_topic_state.last_msg + 1, pub_msg_id):
@@ -119,6 +127,7 @@ class Server(Program):
                 
         # Update last message received from the publisher on the topic
         pub_topic_state.last_msg = pub_msg_id
+        return True
 
 
     def handle_dealer(self) -> None:

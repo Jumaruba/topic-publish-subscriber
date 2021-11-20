@@ -128,4 +128,4 @@ class Subscriber(Client):
             self.handle_msg()
 
         self.unsubscribe_topics()
-        # TODO: delete state when finish
+        self.state.delete()
