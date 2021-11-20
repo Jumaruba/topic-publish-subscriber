@@ -50,13 +50,22 @@ class ServerState(State):
         position = self.client_dict.get(client_id, {}).get(topic)
         return position
 
-    def message_for_client(self, client_id: int, topic: str) -> list:
+    def message_for_client(self, client_id: int, topic: str, msg_id: str = None) -> list:
         """
         Returns the next message that needs to be send to the client,
         in the following format: [client_id, topic, msg_id, msg_content]
-        """
-        last_message_id = self.client_dict[client_id][topic]
-        next_message_id = last_message_id + 1
+        """ 
+        
+        last_message_id = self.client_dict[client_id][topic]  
+
+        # Probably one ack has been lost. Since the client is requesting a message higher 
+        # than the last ack + 1
+        if msg_id is not None and msg_id > last_message_id + 1:
+            print(f"Updating state by get:: prev {last_message_id}, new: {msg_id-1}")
+            self.client_dict[client_id][topic] = msg_id - 1 
+            next_message_id = msg_id
+        else: 
+            next_message_id = last_message_id + 1
 
         # There's no message for this client,
         # it needs to wait for a new message from a publisher
