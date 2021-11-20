@@ -98,6 +98,10 @@ class Subscriber(Client):
         [topic, msg_id, content] = MessageParser.decode(
             self.dealer.recv_multipart())
 
+        # Duplicated message [extreme case]
+        if int(msg_id) < self.state.get_next_message(topic):
+            return 
+
         Logger.topic_message(topic, msg_id, content)
         self.state.add_message(topic, int(msg_id))
         self.state.save_state()

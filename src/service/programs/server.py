@@ -44,7 +44,9 @@ class Server(Program):
         current_data_path = os.path.abspath(os.getcwd())   
         persistent_data_path = f"/data/server_status.pkl" 
         data_path = current_data_path + persistent_data_path
-        self.state = ServerState.read_state(data_path)
+        self.state = ServerState.read_state(data_path)  
+
+
 
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
@@ -105,7 +107,6 @@ class Server(Program):
         # Check if the message is in the waiting list and remove it if it is
         if pub_topic_state.is_waiting(pub_msg_id):
             # Remove from waiting list
-            # TODO: test if it is by reference
             pub_topic_state.remove_waiting(pub_msg_id)
             return 
 
@@ -118,9 +119,6 @@ class Server(Program):
                 
         # Update last message received from the publisher on the topic
         pub_topic_state.last_msg = pub_msg_id
-
-        print(self.state.publish_dict[pub_id][topic])
-        #self.state.set_publish_dict(pub_id, topic, pub_topic_state)
 
 
     def handle_dealer(self) -> None:
@@ -147,7 +145,7 @@ class Server(Program):
             self.backend.send(unsubscribe_msg)
             self.state.remove_subscriber(identity, topic)
 
-    def handle_get(self, client_id: int, topic: str, msg_id: str) -> None:
+    def handle_get(self, client_id: int, topic: str, msg_id: int) -> None:
         Logger.request(client_id, topic)
 
         # Verify if client exists and is subscribed
@@ -163,7 +161,6 @@ class Server(Program):
             Logger.warning(f"    Added {client_id} to the waiting list for '{topic}'")
             return
 
-        # Send to client
         self.router.send_multipart(MessageParser.encode(message))
         Logger.success(f"    The message {int(message[2])} was sent to the subscriber")
 
@@ -185,23 +182,30 @@ class Server(Program):
         acknowledgements and error treatment
         """  
         # When this number achieves to 0, it saves the state in the file. It's decremented for each ACK.
-        self.msg_counter = self.save_frequency 
-        while True:
-            socks = dict(self.poller.poll())
+        self.msg_counter = self.save_frequency  
+        while True: 
+            try: 
+                socks = dict(self.poller.poll())
 
-            # Receives content from publishers
-            if socks.get(self.backend) == zmq.POLLIN:
-                self.handle_publication()
+                # Receives content from publishers
+                if socks.get(self.backend) == zmq.POLLIN:
+                    self.handle_publication()
 
-            # Receives message from subscribers
-            if socks.get(self.router) == zmq.POLLIN:
-                self.handle_dealer()
-                #print(self.state)
+                # Receives message from subscribers
+                if socks.get(self.router) == zmq.POLLIN:
+                    self.handle_dealer()
+                    #print(self.state)
 
-            # Saves the state
-            if self.msg_counter == 0:
-                self.msg_counter = self.save_frequency
-                t = threading.Thread(target=self.state.save_state)
-                t.start()
+                # Saves the state
+                if self.msg_counter == 0:
+                    self.msg_counter = self.save_frequency
+                    self.state.save_state()
+                    # TODO: use locks and save state asynchronously
+                    #t = threading.Thread(target=self.state.save_state)
+                    #t.start()
 
-            self.msg_counter -= 1   
+                self.msg_counter -= 1    
+            except KeyboardInterrupt:
+                self.state.save_state()
+                Logger.err("Keyboard interrupt")
+                exit()

@@ -52,7 +52,7 @@ class ServerState(State):
         position = self.client_dict.get(client_id, {}).get(topic)
         return position
 
-    def message_for_client(self, client_id: int, topic: str, msg_id: str = None) -> list:
+    def message_for_client(self, client_id: int, topic: str, msg_id: int = None) -> list:
         """
         Returns the next message that needs to be send to the client,
         in the following format: [client_id, topic, msg_id, msg_content]

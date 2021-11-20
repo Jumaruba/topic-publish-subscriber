@@ -36,7 +36,6 @@ class SubscriberState(State):
     def get_next_message(self, topic: str):
         if self.messages_received.get(topic) is None:
             return 0
-        print(self.messages_received[topic])  
         return self.messages_received[topic] + 1
 
     def get_last_ack(self):

@@ -56,9 +56,6 @@ class Publisher(Client):
 
 
     def put(self, topic: str, msg_id: int, content: str) -> None:   
-        # TODO: delete this
-        if msg_id == 2:
-            return 
         self.publisher.send_multipart(MessageParser.encode([topic, self.id, content, msg_id]))
         Logger.put_message(self.id, topic, msg_id, content)
     

@@ -23,6 +23,7 @@ class Logger:
 
     @staticmethod
     def new_message(message: list) -> None:
+        return
         print("\n" + "-" * 80)
         print(f"{message}")
         print("-" * 80)
@@ -67,6 +68,12 @@ class Logger:
     def warning(message):
         Logger.add_color(Colors.YELLOW)
         print(message)
+        Logger.reset_colors()
+
+    @staticmethod
+    def err(message):
+        Logger.add_color(Colors.RED)
+        print(f"[ERR] {message}")
         Logger.reset_colors()
 
     # --------------------------------------------------------------------------
