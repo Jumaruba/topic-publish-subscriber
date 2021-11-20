@@ -107,10 +107,11 @@ class Server(Program):
         topic = message[2]
 
         if message_type == "GET":  
-            self.handle_get(identity, topic)
+            msg_id = int(message[3])
+            self.handle_get(identity, topic, msg_id)
         elif message_type == "ACK": 
-            message_id = int(message[3])
-            self.handle_acknowledgement(identity, message_id, topic)
+            msg_id = int(message[3])
+            self.handle_acknowledgement(identity, msg_id, topic)
         elif message_type == "SUB":         # Testing router/dealer for subscription (missing unsubscription)
             Logger.subscription(identity, topic)
             # Forward to publishers and add to data structure
@@ -123,7 +124,7 @@ class Server(Program):
             self.backend.send(unsubscribe_msg)
             self.state.remove_subscriber(identity, topic)
 
-    def handle_get(self, client_id: int, topic: str) -> None:
+    def handle_get(self, client_id: int, topic: str, msg_id: str) -> None:
         Logger.request(client_id, topic)
 
         # Verify if client exists and is subscribed
@@ -131,13 +132,14 @@ class Server(Program):
             # TODO - Send error message?
             return
         # Gets and verifies message
-        message = self.state.message_for_client(client_id, topic)
+        message = self.state.message_for_client(client_id, topic, msg_id)
 
         if message is None:
             # Adds to the pending clients, as there's no message to be send
             self.state.add_to_waiting_list(client_id, topic)
             Logger.warning(f"    Added {client_id} to the waiting list for '{topic}'")
             return
+
         # Send to client
         self.router.send_multipart(MessageParser.encode(message))
         Logger.success(f"    The message {int(message[2])} was sent to the subscriber")

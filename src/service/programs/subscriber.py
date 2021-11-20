@@ -14,7 +14,6 @@ from .state.subscriber_state import SubscriberState
 from .program import SocketCreationFunction
 
 
-
 class Subscriber(Client):
 
     # --------------------------------------------------------------------------
@@ -33,6 +32,7 @@ class Subscriber(Client):
     def __init__(self, topics_json: str, client_id: int):
         super().__init__()
 
+        self.ack_count = 0
         # State
         current_data_path = os.path.abspath(os.getcwd())   
         persistent_data_path = f"/data/client_status_{client_id}.pkl" 
@@ -83,7 +83,8 @@ class Subscriber(Client):
 
     def get(self, topic: str) -> None:
         self.state.set_last_get(topic)
-        self.dealer.send_multipart(MessageParser.encode(['GET', topic]))
+        msg_id = self.state.get_next_message(topic)
+        self.dealer.send_multipart(MessageParser.encode(['GET', topic, msg_id]))
         Logger.get(self.client_id, topic)
 
     def handle_crash(self):
@@ -99,10 +100,13 @@ class Subscriber(Client):
             self.dealer.recv_multipart())
 
         Logger.topic_message(topic, msg_id, content)
-        self.state.add_message(topic, msg_id)
+        self.state.add_message(topic, int(msg_id))
         self.state.save_state()
-        self.dealer.send_multipart(
-            MessageParser.encode(['ACK', topic, msg_id]))
+
+        if self.ack_count != 2:
+            self.dealer.send_multipart(
+                MessageParser.encode(['ACK', topic, msg_id]))
+        self.ack_count+=1
 
     # --------------------------------------------------------------------------
     # Main function of subscriber
