@@ -18,7 +18,7 @@ class Publisher(Client):
     # --------------------------------------------------------------------------
 
     publisher: zmq.Socket
-    messages: list                  # List of messages to send
+    messages: dict                  # List of messages to send
     put_topic_dict: dict            # Last_topic_msg[topic] = message_id   # last message sent from each topic
     fault_server: zmq.Socket        # Error messages that comes from the server
 
@@ -69,7 +69,7 @@ class Publisher(Client):
             return
 
         Logger.new_message(message)
-        pub_id, topic, msg_id = MessageParser.decode(message) 
+        _, topic, msg_id = MessageParser.decode(message) 
         content = self.messages[topic][int(msg_id) % len(self.messages[topic])]        
         self.put(topic, msg_id, content)
 
