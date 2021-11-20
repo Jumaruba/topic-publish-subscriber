@@ -23,7 +23,6 @@ class Logger:
 
     @staticmethod
     def new_message(message: list) -> None:
-        return
         print("\n" + "-" * 80)
         print(f"{message}")
         print("-" * 80)

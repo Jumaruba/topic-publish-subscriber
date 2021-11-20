@@ -26,7 +26,7 @@ class Server(Program):
     backend: zmq.Socket
     router: zmq.Socket
     state: ServerState
-    ack_server: zmq.Socket 
+    fault_pub: zmq.Socket 
 
 
     # --------------------------------------------------------------------------
@@ -57,7 +57,7 @@ class Server(Program):
 
         self.router = self.create_socket(
             zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
-        self.ack_server = self.create_socket(
+        self.fault_pub = self.create_socket(
             zmq.PUB, SocketCreationFunction.BIND, '*:5552')
 
     # --------------------------------------------------------------------------
@@ -83,22 +83,45 @@ class Server(Program):
 
     def handle_publication(self) -> None:
         """
-        Reads the message from the backend socket, creates a new id for it,
-        sends it to the subscribers and adds the new message to the data
-        structures
+        Reads the message from the backend socket, creates a new id for it, 
+        and adds the new message to the data structures
         """
         raw_message = self.backend.recv_multipart()
         Logger.new_message(raw_message)
 
         topic, pub_id, message, pub_msg_id = MessageParser.decode(raw_message)
-        # Send the ACK to the server
-        # TODO - save original message id and send ack to publisher
-        self.ack_server.send_multipart(MessageParser.encode([pub_id, pub_msg_id, topic])) 
+        
+        # Handle missing publications
+        self.handle_pub_fault(int(pub_id), topic, int(pub_msg_id))  
 
         message_id = self.state.add_message(topic, message)
         Logger.publication(topic, message_id, message)
 
         self.update_pending_clients(topic)
+
+    def handle_pub_fault(self, pub_id: int, topic: str, pub_msg_id: int) -> None: 
+        pub_topic_state = self.state.get_publish_dict(pub_id, topic)
+
+        # Check if the message is in the waiting list and remove it if it is
+        if pub_topic_state.is_waiting(pub_msg_id):
+            # Remove from waiting list
+            # TODO: test if it is by reference
+            pub_topic_state.remove_waiting(pub_msg_id)
+            return 
+
+        if pub_msg_id - pub_topic_state.last_msg > 1:
+            for lost_msg_id in range(pub_topic_state.last_msg + 1, pub_msg_id):
+                # Add to waiting set 
+                pub_topic_state.add_waiting(lost_msg_id)
+                # Send fo message to the publisher.
+                self.fault_pub.send_multipart(MessageParser.encode([pub_id, topic, lost_msg_id])) 
+                
+        # Update last message received from the publisher on the topic
+        pub_topic_state.last_msg = pub_msg_id
+
+        print(self.state.publish_dict[pub_id][topic])
+        #self.state.set_publish_dict(pub_id, topic, pub_topic_state)
+
 
     def handle_dealer(self) -> None:
         message = MessageParser.decode(self.router.recv_multipart())

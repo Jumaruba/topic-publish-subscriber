@@ -18,11 +18,9 @@ class Publisher(Client):
     # --------------------------------------------------------------------------
 
     publisher: zmq.Socket
-    messages: list              # list of messages to send
-    ack_topic_dict: dict         # topic_dict[topic] = message_id  # confirmed puts
-    last_put: str               # topic published in the last put call
+    messages: list               # list of messages to send
     put_topic_dict: dict         # last_topic_msg[topic] = message_id   # last message sent from each topic
-    ack_server: zmq.Socket      
+    fault_server: zmq.Socket     # Error messages that comes from the server
     
     # --------------------------------------------------------------------------
     # Initialization of publisher
@@ -31,10 +29,8 @@ class Publisher(Client):
     def __init__(self, messages_json: str) -> None:
         super().__init__() 
         # TODO: change to receive id from the input
-        self.id = str(random.randint(0, 8000)).encode('utf-8')
-        self.ack_topic_dict = {}
-        self.put_topic_dict = {}
-        self.last_put = None  
+        self.id = str(random.randint(0, 8000))
+        self.put_topic_dict = {} 
 
         self.init_sockets()
         self.get_messages(messages_json)
@@ -42,33 +38,34 @@ class Publisher(Client):
 
     def init_sockets(self) -> None:
         self.publisher = self.create_socket(zmq.PUB, SocketCreationFunction.CONNECT, 'localhost:5556') 
-        self.ack_server = self.create_socket(zmq.SUB, SocketCreationFunction.CONNECT, 'localhost:5552') 
-        self.ack_server.setsockopt(zmq.IDENTITY, self.id) # Subscribe to receive acks. 
-        self.ack_server.setsockopt(zmq.SUBSCRIBE, self.id)
+        self.fault_server = self.create_socket(zmq.SUB, SocketCreationFunction.CONNECT, 'localhost:5552') 
+        self.fault_server.setsockopt(zmq.IDENTITY, self.id.encode('utf-8')) # Subscribe to receive fault messages from server. 
+        self.fault_server.setsockopt(zmq.SUBSCRIBE, self.id.encode('utf-8'))
 
     def get_messages(self, messages_json: str):
         f = open(messages_json + ".json")
         self.messages = json.load(f).get("topics")
         f.close()
 
-    def put(self, topic: str, msg_id: int, content: str) -> None: 
-        self.last_put = topic
+    def put(self, topic: str, msg_id: int, content: str) -> None:   
+        # TODO: delete this
+        if msg_id == 2:
+            return 
         self.publisher.send_multipart(MessageParser.encode([topic, self.id, content, msg_id]))
         Logger.put_message(self.id, topic, msg_id, content)
     
-
-    def handle_ack(self):
-        """
-        Updates state if ACK is received
-        """
+    def handle_fault(self):
         try:
-            message = self.ack_server.recv_multipart(flags=zmq.NOBLOCK)
-            msg_id, topic = MessageParser.decode(message)
-            self.topic_dict[topic] = int(msg_id)
-            self.last_put = None
-            Logger.acknowledgement_pub(topic, msg_id)
+            message = self.fault_server.recv_multipart(flags=zmq.NOBLOCK)
         except zmq.Again as e:
             return
+
+        Logger.new_message(message)
+        print(self.messages)
+        pub_id, topic, msg_id = MessageParser.decode(message) 
+        content = self.messages[0]["messages"][int(msg_id) % len(topic['messages'])]        
+        self.put(topic, msg_id, content)
+
 
     def publication(self):
         # Get random topic
@@ -96,13 +93,14 @@ class Publisher(Client):
 
     def run(self) -> None:
 
-        ## TODO check if socket is connected before starting to send messages
+        # TODO check if socket is connected before starting to send messages
+        # TODO save the state in memory 
 
         while True:
             # Send publication
             self.publication()
 
-            # Receive ACKS
-            self.handle_ack()
+            # Handles lost messages from the server.
+            self.handle_fault()
 
             time.sleep(2)

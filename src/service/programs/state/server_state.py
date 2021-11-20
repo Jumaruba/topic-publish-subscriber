@@ -1,6 +1,7 @@
 from __future__ import annotations
-import json 
+import json
 
+from .pub_topic_state import PubTopicState
 from .state import State
 
 
@@ -10,10 +11,10 @@ class ServerState(State):
     # Initialization
     # --------------------------------------------------------------------------
 
-    topic_dict: dict       # topic_dict[<topic>][<message id>] = message
-    client_dict: dict      # client_dict[<client id>][<topic>] = last message received 
-    publish_dict: dict     # publish_dict[<topic>][<pub_id>] 
-    pending_clients: dict  # pending_clients[<topic>] = list of clients waiting
+    topic_dict: dict        # topic_dict[<topic>][<message id>] = message
+    client_dict: dict       # client_dict[<client id>][<topic>] = last message received 
+    pending_clients: dict   # pending_clients[<topic>] = list of clients waiting
+    publish_dict: dict      # publish_fail[<publisher>][<topic>] = PubTopicState
     
 
     def __init__(self, data_path: str) -> None:
@@ -21,6 +22,7 @@ class ServerState(State):
         self.topic_dict = {}
         self.client_dict = {}
         self.pending_clients = {}
+        self.publish_dict = {}
 
     @staticmethod
     def read_state(data_path: str):
@@ -99,6 +101,15 @@ class ServerState(State):
             if topic in topics:
                 result = min(result, topics[topic])
         return result
+ 
+    def get_publish_dict(self, pub_id: int, topic: str): 
+        if self.publish_dict.get(pub_id) is None: 
+            self.publish_dict[pub_id] = {}
+        if self.publish_dict[pub_id].get(topic) is None:
+            self.publish_dict[pub_id][topic] = PubTopicState()
+
+        return self.publish_dict[pub_id][topic]
+
 
     # --------------------------------------------------------------------------
     # Add data
