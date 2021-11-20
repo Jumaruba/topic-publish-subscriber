@@ -1,6 +1,4 @@
-{"topics":[
-    {"name": "weather",
-    "messages": [
+{ "weather": [
          "I am surprised to say the weather was better." ,
          "The weather was balmy, adding to the enjoyment of the day." ,
          "The weather is supposed to be nice this weekend." ,
@@ -15,9 +13,8 @@
          "In spite of the mud and weather, she felt much better." ,
          "In the right stage of the weather a pond fires its evening gun with great regularity." ,
          "As the weather improved, the goats began kidding in earnest."
-    ]}, 
-    {"name": "covid",
-    "messages":[
+    ], 
+    "covid": [
         "Victoria has 797 new COVID19 cases and eight deaths." ,
         "Covid booster jabs set to be given to people in their 50s as NPHET give stark warning." ,
          "Austria introduces lockdown for unvaccinated." ,
@@ -32,5 +29,5 @@
          "Fully vaccinated people with breakthrough infections are less likely to develop serious illness from COVID19 than unvaccinated people." ,
          "People with COVID19 have reported a wide range of symptoms ." ,
          "A COVID19 test can help you determine if you have an infection." 
-    ]}
-]}
+    ]
+}

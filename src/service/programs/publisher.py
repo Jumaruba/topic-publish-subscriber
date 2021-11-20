@@ -18,10 +18,14 @@ class Publisher(Client):
     # --------------------------------------------------------------------------
 
     publisher: zmq.Socket
-    messages: list               # list of messages to send
-    put_topic_dict: dict         # last_topic_msg[topic] = message_id   # last message sent from each topic
-    fault_server: zmq.Socket     # Error messages that comes from the server
-    
+    messages: list                  # List of messages to send
+    put_topic_dict: dict            # Last_topic_msg[topic] = message_id   # last message sent from each topic
+    fault_server: zmq.Socket        # Error messages that comes from the server
+
+    topic_names: list               # Possible topics
+    n_topics: int                   # Number of topics
+
+
     # --------------------------------------------------------------------------
     # Initialization of publisher
     # --------------------------------------------------------------------------
@@ -33,8 +37,10 @@ class Publisher(Client):
         self.put_topic_dict = {} 
 
         self.init_sockets()
-        self.get_messages(messages_json)
-        self.n_topics = len(self.messages)
+        self.get_messages(messages_json) 
+        self.topic_names = list(self.messages.keys())
+        self.n_topics = len(self.topic_names)
+
 
     def init_sockets(self) -> None:
         self.publisher = self.create_socket(zmq.PUB, SocketCreationFunction.CONNECT, 'localhost:5556') 
@@ -42,10 +48,12 @@ class Publisher(Client):
         self.fault_server.setsockopt(zmq.IDENTITY, self.id.encode('utf-8')) # Subscribe to receive fault messages from server. 
         self.fault_server.setsockopt(zmq.SUBSCRIBE, self.id.encode('utf-8'))
 
+
     def get_messages(self, messages_json: str):
         f = open(messages_json + ".json")
-        self.messages = json.load(f).get("topics")
+        self.messages = json.load(f)
         f.close()
+
 
     def put(self, topic: str, msg_id: int, content: str) -> None:   
         # TODO: delete this
@@ -61,22 +69,21 @@ class Publisher(Client):
             return
 
         Logger.new_message(message)
-        print(self.messages)
         pub_id, topic, msg_id = MessageParser.decode(message) 
-        content = self.messages[0]["messages"][int(msg_id) % len(topic['messages'])]        
+        content = self.messages[topic][int(msg_id) % len(self.messages[topic])]        
         self.put(topic, msg_id, content)
 
 
     def publication(self):
         # Get random topic
-        topic = self.messages[random.randint(0, self.n_topics-1)]
+        topic = self.topic_names[random.randint(0, self.n_topics-1)]
         
         # Get id of the next message message to send
-        msg_id = self.get_next_message(topic["name"])
-        content = topic["messages"][msg_id % len(topic["messages"])]
+        msg_id = self.get_next_message(topic)
+        content = self.messages[topic][msg_id % len(self.messages[topic])]
 
-        self.put_topic_dict[topic["name"]] = msg_id
-        self.put(topic["name"] , msg_id, str(content))
+        self.put_topic_dict[topic] = msg_id
+        self.put(topic, msg_id, str(content))
 
     # -------------------------------------------------------------------------
     # State Functions
