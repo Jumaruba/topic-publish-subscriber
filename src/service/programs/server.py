@@ -1,22 +1,16 @@
 from __future__ import annotations
 
+import os
 import zmq
 
-from zmq import backend
-from zmq.sugar.socket import Socket
-
-from .program import SocketCreationFunction
-from .program import Program
 from .log.logger import Logger
-from .excpt.create_socket import CreateSocket
 from .message.message_parser import MessageParser
+from .program import Program
+from .program import SocketCreationFunction
 from .state.server_state import ServerState
-from typing import List
-import threading 
-import os
+
 
 class Server(Program):
-
     # --------------------------------------------------------------------------
     # Attributes
     # --------------------------------------------------------------------------
@@ -26,8 +20,7 @@ class Server(Program):
     backend: zmq.Socket
     router: zmq.Socket
     state: ServerState
-    fault_pub: zmq.Socket 
-
+    fault_pub: zmq.Socket
 
     # --------------------------------------------------------------------------
     # Initialization of server
@@ -37,16 +30,15 @@ class Server(Program):
         super().__init__()
         self.init_sockets()
         self.create_poller()
-        # How many messages must be received to the state be saved. 
+        # How many messages must be received to the state be saved.
         self.save_frequency = 5
-        # State  
+        self.msg_counter = self.save_frequency
+        # State
 
-        current_data_path = os.path.abspath(os.getcwd())   
-        persistent_data_path = f"/data/server_status.pkl" 
+        current_data_path = os.path.abspath(os.getcwd())
+        persistent_data_path = f"/data/server_status.pkl"
         data_path = current_data_path + persistent_data_path
-        self.state = ServerState.read_state(data_path)  
-
-
+        self.state = ServerState.read_state(data_path)
 
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
@@ -85,7 +77,7 @@ class Server(Program):
 
     def handle_publication(self) -> None:
         """
-        Reads the message from the backend socket, creates a new id for it, 
+        Reads the message from the backend socket, creates a new id for it,
         and adds the new message to the data structures
         """
         raw_message = self.backend.recv_multipart()
@@ -93,8 +85,8 @@ class Server(Program):
 
         topic, pub_id, message, pub_msg_id = MessageParser.decode(raw_message)
 
-        # Handle missing/duplicate publications 
-        fault_message = self.handle_pub_fault(int(pub_id), topic, int(pub_msg_id))  
+        # Handle missing/duplicate publications
+        fault_message = self.handle_pub_fault(int(pub_id), topic, int(pub_msg_id))
 
         if fault_message:
             message_id = self.state.add_message(topic, message)
@@ -102,7 +94,7 @@ class Server(Program):
 
         self.update_pending_clients(topic)
 
-    def handle_pub_fault(self, pub_id: int, topic: str, pub_msg_id: int) -> bool:  
+    def handle_pub_fault(self, pub_id: int, topic: str, pub_msg_id: int) -> bool:
         """
         Return true if not duplicated (if the message is to be resend to the subscriber).
         Send Fault Message to publishers if a message is missing.
@@ -115,20 +107,19 @@ class Server(Program):
             pub_topic_state.remove_waiting(pub_msg_id)
             return True
         # Checks if duplicated.
-        elif pub_msg_id <= pub_topic_state.last_msg: 
+        elif pub_msg_id <= pub_topic_state.last_msg:
             return False
 
         if pub_msg_id - pub_topic_state.last_msg > 1:
             for lost_msg_id in range(pub_topic_state.last_msg + 1, pub_msg_id):
-                # Add to waiting set 
+                # Add to waiting set
                 pub_topic_state.add_waiting(lost_msg_id)
                 # Send fo message to the publisher.
-                self.fault_pub.send_multipart(MessageParser.encode([pub_id, topic, lost_msg_id])) 
-                
+                self.fault_pub.send_multipart(MessageParser.encode([pub_id, topic, lost_msg_id]))
+
         # Update last message received from the publisher on the topic
         pub_topic_state.last_msg = pub_msg_id
         return True
-
 
     def handle_dealer(self) -> None:
         message = MessageParser.decode(self.router.recv_multipart())
@@ -136,19 +127,20 @@ class Server(Program):
         message_type = message[1]
         topic = message[2]
 
-        if message_type == "GET":  
+        if message_type == "GET":
             msg_id = int(message[3])
             self.handle_get(identity, topic, msg_id)
-        elif message_type == "ACK": 
+        elif message_type == "ACK":
             msg_id = int(message[3])
             self.handle_acknowledgement(identity, msg_id, topic)
-        elif message_type == "SUB":         # Testing router/dealer for subscription (missing unsubscription)
+        # Testing router/dealer for subscription (missing unsubscription)
+        elif message_type == "SUB":
             Logger.subscription(identity, topic)
             # Forward to publishers and add to data structure
             subscribe_msg = b'\x01' + topic.encode('utf-8')
             self.backend.send(subscribe_msg)
             self.state.add_subscriber(identity, topic)
-        elif message_type == "UNSUB": 
+        elif message_type == "UNSUB":
             Logger.unsubscription(identity, topic)
             unsubscribe_msg = b'\x00' + topic.encode('utf-8')
             self.backend.send(unsubscribe_msg)
@@ -189,11 +181,10 @@ class Server(Program):
         """
         Runs the server, which includes handling subscriptions, publications,
         acknowledgements and error treatment
-        """  
+        """
         # When this number achieves to 0, it saves the state in the file. It's decremented for each ACK.
-        self.msg_counter = self.save_frequency  
-        while True: 
-            try: 
+        while True:
+            try:
                 socks = dict(self.poller.poll())
 
                 # Receives content from publishers
@@ -203,17 +194,17 @@ class Server(Program):
                 # Receives message from subscribers
                 if socks.get(self.router) == zmq.POLLIN:
                     self.handle_dealer()
-                    #print(self.state)
+                    # print(self.state)
 
                 # Saves the state
                 if self.msg_counter == 0:
                     self.msg_counter = self.save_frequency
                     self.state.save_state()
                     # TODO: use locks and save state asynchronously
-                    #t = threading.Thread(target=self.state.save_state)
-                    #t.start()
+                    # t = threading.Thread(target=self.state.save_state)
+                    # t.start()
 
-                self.msg_counter -= 1    
+                self.msg_counter -= 1
             except KeyboardInterrupt:
                 self.state.save_state()
                 Logger.err("Keyboard interrupt")

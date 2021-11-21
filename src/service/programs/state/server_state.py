@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 
 from .pub_topic_state import PubTopicState
@@ -6,16 +7,14 @@ from .state import State
 
 
 class ServerState(State):
-
     # --------------------------------------------------------------------------
     # Initialization
     # --------------------------------------------------------------------------
 
-    topic_dict: dict        # topic_dict[<topic>][<message id>] = message
-    client_dict: dict       # client_dict[<client id>][<topic>] = last message received 
-    pending_clients: dict   # pending_clients[<topic>] = list of clients waiting
-    publish_dict: dict      # publish_fail[<publisher>][<topic>] = PubTopicState
-    
+    topic_dict: dict  # topic_dict[<topic>][<message id>] = message
+    client_dict: dict  # client_dict[<client id>][<topic>] = last message received
+    pending_clients: dict  # pending_clients[<topic>] = list of clients waiting
+    publish_dict: dict  # publish_fail[<publisher>][<topic>] = PubTopicState
 
     def __init__(self, data_path: str) -> None:
         super().__init__(data_path)
@@ -56,17 +55,17 @@ class ServerState(State):
         """
         Returns the next message that needs to be send to the client,
         in the following format: [client_id, topic, msg_id, msg_content]
-        """ 
-        
-        last_message_id = self.client_dict[client_id][topic]  
+        """
+
+        last_message_id = self.client_dict[client_id][topic]
 
         # Probably one ack has been lost. Since the client is requesting a message higher 
         # than the last ack + 1
         if msg_id is not None and msg_id > last_message_id + 1:
-            print(f"Updating state by get:: prev {last_message_id}, new: {msg_id-1}")
-            self.client_dict[client_id][topic] = msg_id - 1 
+            print(f"Updating state by get:: prev {last_message_id}, new: {msg_id - 1}")
+            self.client_dict[client_id][topic] = msg_id - 1
             next_message_id = msg_id
-        else: 
+        else:
             next_message_id = last_message_id + 1
 
         # There's no message for this client,
@@ -101,15 +100,14 @@ class ServerState(State):
             if topic in topics:
                 result = min(result, topics[topic])
         return result
- 
-    def get_publish_dict(self, pub_id: int, topic: str): 
-        if self.publish_dict.get(pub_id) is None: 
+
+    def get_publish_dict(self, pub_id: int, topic: str):
+        if self.publish_dict.get(pub_id) is None:
             self.publish_dict[pub_id] = {}
         if self.publish_dict[pub_id].get(topic) is None:
             self.publish_dict[pub_id][topic] = PubTopicState()
 
         return self.publish_dict[pub_id][topic]
-
 
     # --------------------------------------------------------------------------
     # Add data
@@ -198,8 +196,7 @@ class ServerState(State):
             self.remove_topic(topic)
 
     def empty_waiting_list(self, topic: str) -> None:
-        self.pending_clients[topic] = [] 
-
+        self.pending_clients[topic] = []
 
     def __str__(self):
         str_topic_dict = json.dumps(self.topic_dict)
@@ -215,4 +212,3 @@ class ServerState(State):
             [PENDING CLIENTS] pending_client[<topic>] = list of clients waiting
             {str_pending_clients}
         """
-

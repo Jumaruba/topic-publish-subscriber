@@ -5,15 +5,15 @@ import os
 
 from .state import State
 
-class SubscriberState(State):
 
+class SubscriberState(State):
     # --------------------------------------------------------------------------
     # Initialization
     # --------------------------------------------------------------------------
 
-    topics: list               # subscribed topics
-    messages_received: dict    # messages_received[topic] = message_id
-    last_get: str | None       # last topic that was requested with GET
+    topics: list  # subscribed topics
+    messages_received: dict  # messages_received[topic] = message_id
+    last_get: str | None  # last topic that was requested with GET
 
     def __init__(self, data_path: str, topics_json: str) -> None:
         super().__init__(data_path)
@@ -28,11 +28,11 @@ class SubscriberState(State):
         return topics
 
     def is_new_subscriber(self, data_path: str):
-        return not os.path.isfile(data_path)    
+        return not os.path.isfile(data_path)
 
     def add_message(self, topic: str, msg_id: int):
         self.messages_received[topic] = msg_id
-    
+
     def get_next_message(self, topic: str):
         if self.messages_received.get(topic) is None:
             return 0
@@ -53,7 +53,6 @@ class SubscriberState(State):
         if state is None:
             return SubscriberState(data_path, topics_json)
         return state
-
 
     def __str__(self):
         str_topics = json.dumps(self.topics)
