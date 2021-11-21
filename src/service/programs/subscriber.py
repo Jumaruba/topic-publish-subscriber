@@ -30,7 +30,7 @@ class Subscriber(Client):
 
         # State
         current_data_path = os.path.abspath(os.getcwd())
-        persistent_data_path = f"/data/client_status_{client_id}.pkl"
+        persistent_data_path = f"/data/subscriber_status_{client_id}.pkl"
         data_path = current_data_path + persistent_data_path
         self.state = SubscriberState.read_state(data_path, topics_json)
 

@@ -45,6 +45,8 @@ class Logger:
 
     @staticmethod
     def publication(topic: str, message_id: int, message: str):
+        if len(message) > 50:
+            message = message[:50] + "..."
         print(f"[PUT] t('{topic}') - msgid({message_id}) - msg('{message}')")
 
     @staticmethod

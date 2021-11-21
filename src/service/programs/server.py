@@ -18,9 +18,10 @@ class Server(Program):
     # Sockets
     poller: zmq.Poller
     backend: zmq.Socket
+    fault_pub: zmq.Socket
     router: zmq.Socket
     state: ServerState
-    fault_pub: zmq.Socket
+    msg_counter: int
 
     # --------------------------------------------------------------------------
     # Initialization of server
@@ -30,11 +31,13 @@ class Server(Program):
         super().__init__()
         self.init_sockets()
         self.create_poller()
+
         # How many messages must be received to the state be saved.
         self.save_frequency = 5
+        # When this number achieves to 0, it saves the state in the file. It's decremented for each ACK.
         self.msg_counter = self.save_frequency
-        # State
 
+        # State
         current_data_path = os.path.abspath(os.getcwd())
         persistent_data_path = f"/data/server_status.pkl"
         data_path = current_data_path + persistent_data_path
@@ -46,17 +49,14 @@ class Server(Program):
         self.poller.register(self.router, zmq.POLLIN)
 
     def init_sockets(self) -> None:
-        self.backend = self.create_socket(
-            zmq.XSUB, SocketCreationFunction.BIND, '*:5556')
-
-        self.router = self.create_socket(
-            zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
-        self.fault_pub = self.create_socket(
-            zmq.PUB, SocketCreationFunction.BIND, '*:5552')
+        self.backend = self.create_socket(zmq.XSUB, SocketCreationFunction.BIND, '*:5556')
+        self.router = self.create_socket(zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
+        self.fault_pub = self.create_socket(zmq.PUB, SocketCreationFunction.BIND, '*:5552')
 
     # --------------------------------------------------------------------------
     #  Handling of messages
     # --------------------------------------------------------------------------
+
     def update_pending_clients(self, topic: str) -> None:
         """
         If there are any pending clients for a topic, goes through the list and sends the last received message
@@ -65,7 +65,7 @@ class Server(Program):
         if not pending_clients:
             return
 
-        Logger.success(f"    Send message to the waiting subscribers:", end=" ")
+        Logger.success(f"      Send message to the waiting subscribers:", end=" ")
         for client_id in pending_clients:
             # Send message to pending client
             message = self.state.message_for_client(client_id, topic)
@@ -74,25 +74,6 @@ class Server(Program):
 
         Logger.success()
         self.state.empty_waiting_list(topic)
-
-    def handle_publication(self) -> None:
-        """
-        Reads the message from the backend socket, creates a new id for it,
-        and adds the new message to the data structures
-        """
-        raw_message = self.backend.recv_multipart()
-        Logger.new_message(raw_message)
-
-        topic, pub_id, message, pub_msg_id = MessageParser.decode(raw_message)
-
-        # Handle missing/duplicate publications
-        fault_message = self.handle_pub_fault(int(pub_id), topic, int(pub_msg_id))
-
-        if fault_message:
-            message_id = self.state.add_message(topic, message)
-            Logger.publication(topic, message_id, message)
-
-        self.update_pending_clients(topic)
 
     def handle_pub_fault(self, pub_id: int, topic: str, pub_msg_id: int) -> bool:
         """
@@ -121,30 +102,32 @@ class Server(Program):
         pub_topic_state.last_msg = pub_msg_id
         return True
 
-    def handle_dealer(self) -> None:
-        message = MessageParser.decode(self.router.recv_multipart())
-        identity = int(message[0])
-        message_type = message[1]
-        topic = message[2]
+    def handle_publication(self) -> None:
+        """
+        Reads the message from the backend socket, creates a new id for it,
+        and adds the new message to the data structures
+        """
+        raw_message = self.backend.recv_multipart()
+        Logger.new_message(raw_message)
 
-        if message_type == "GET":
-            msg_id = int(message[3])
-            self.handle_get(identity, topic, msg_id)
-        elif message_type == "ACK":
-            msg_id = int(message[3])
-            self.handle_acknowledgement(identity, msg_id, topic)
-        # Testing router/dealer for subscription (missing unsubscription)
-        elif message_type == "SUB":
-            Logger.subscription(identity, topic)
-            # Forward to publishers and add to data structure
-            subscribe_msg = b'\x01' + topic.encode('utf-8')
-            self.backend.send(subscribe_msg)
-            self.state.add_subscriber(identity, topic)
-        elif message_type == "UNSUB":
-            Logger.unsubscription(identity, topic)
-            unsubscribe_msg = b'\x00' + topic.encode('utf-8')
-            self.backend.send(unsubscribe_msg)
-            self.state.remove_subscriber(identity, topic)
+        topic, pub_id, message, pub_msg_id = MessageParser.decode(raw_message)
+
+        # Handle missing/duplicate publications
+        fault_message = self.handle_pub_fault(int(pub_id), topic, int(pub_msg_id))
+
+        if fault_message:
+            message_id = self.state.add_message(topic, message)
+            Logger.publication(topic, message_id, message)
+
+        self.update_pending_clients(topic)
+
+    def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
+        Logger.acknowledgement(client_id, topic, message_id)
+
+        if self.state.check_client_subscription(client_id, topic) is not None:
+            self.state.update_client_last_message(client_id, topic, message_id)
+        else:
+            Logger.warning(f"      {client_id} is not a subscriber of '{topic}'")
 
     def handle_get(self, client_id: int, topic: str, msg_id: int) -> None:
         Logger.request(client_id, topic)
@@ -159,19 +142,43 @@ class Server(Program):
         if message is None:
             # Adds to the pending clients, as there's no message to be send
             self.state.add_to_waiting_list(client_id, topic)
-            Logger.warning(f"    Added {client_id} to the waiting list for '{topic}'")
+            Logger.warning(f"      Added {client_id} to the waiting list for '{topic}'")
             return
 
         self.router.send_multipart(MessageParser.encode(message))
-        Logger.success(f"    The message {int(message[2])} was sent to the subscriber")
+        Logger.success(f"      The message {int(message[2])} was sent to the subscriber")
 
-    def handle_acknowledgement(self, client_id: int, message_id: int, topic: str) -> None:
-        Logger.acknowledgement(client_id, topic, message_id)
+    def handle_subscription(self, client_id: int, topic: str) -> None:
+        Logger.subscription(client_id, topic)
+        # Forward to publishers and add to data structure
+        subscribe_msg = b'\x01' + topic.encode('utf-8')
+        self.backend.send(subscribe_msg)
+        self.state.add_subscriber(client_id, topic)
 
-        if self.state.check_client_subscription(client_id, topic) is not None:
-            self.state.update_client_last_message(client_id, topic, message_id)
-        else:
-            Logger.warning(f"    {client_id} is not a subscriber of '{topic}'")
+    def handle_unsubscription(self, client_id: int, topic: str) -> None:
+        Logger.unsubscription(client_id, topic)
+        unsubscribe_msg = b'\x00' + topic.encode('utf-8')
+        self.backend.send(unsubscribe_msg)
+        self.state.remove_subscriber(client_id, topic)
+
+    def handle_dealer(self) -> None:
+        message = MessageParser.decode(self.router.recv_multipart())
+
+        # Message parsing
+        client_id = int(message[0])
+        message_type = message[1]
+        topic = message[2]
+        if len(message) >= 4:
+            message_id = int(message[3])
+
+        if message_type == "ACK":
+            self.handle_acknowledgement(client_id, message_id, topic)
+        elif message_type == "GET":
+            self.handle_get(client_id, topic, message_id)
+        elif message_type == "SUB":
+            self.handle_subscription(client_id, topic)
+        elif message_type == "UNSUB":
+            self.handle_unsubscription(client_id, topic)
 
     # --------------------------------------------------------------------------
     # Main function of server
@@ -182,7 +189,6 @@ class Server(Program):
         Runs the server, which includes handling subscriptions, publications,
         acknowledgements and error treatment
         """
-        # When this number achieves to 0, it saves the state in the file. It's decremented for each ACK.
         while True:
             try:
                 socks = dict(self.poller.poll())
@@ -194,7 +200,6 @@ class Server(Program):
                 # Receives message from subscribers
                 if socks.get(self.router) == zmq.POLLIN:
                     self.handle_dealer()
-                    # print(self.state)
 
                 # Saves the state
                 if self.msg_counter == 0:
