@@ -20,6 +20,7 @@ class Server(Program):
     backend: zmq.Socket
     fault_pub: zmq.Socket
     router: zmq.Socket
+    sync_sub:zmq.Socket
     state: ServerState
     msg_counter: int
 
@@ -43,15 +44,17 @@ class Server(Program):
         data_path = current_data_path + persistent_data_path
         self.state = ServerState.read_state(data_path)
 
-    def create_poller(self) -> None:
-        self.poller = zmq.Poller()
-        self.poller.register(self.backend, zmq.POLLIN)
-        self.poller.register(self.router, zmq.POLLIN)
-
     def init_sockets(self) -> None:
         self.backend = self.create_socket(zmq.XSUB, SocketCreationFunction.BIND, '*:5556')
         self.router = self.create_socket(zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
         self.fault_pub = self.create_socket(zmq.PUB, SocketCreationFunction.BIND, '*:5552')
+        self.sync_sub = self.create_socket(zmq.ROUTER, SocketCreationFunction.BIND, '*:5553')
+
+    def create_poller(self) -> None:
+        self.poller = zmq.Poller()
+        self.poller.register(self.backend, zmq.POLLIN)
+        self.poller.register(self.router, zmq.POLLIN)
+        self.poller.register(self.sync_sub, zmq.POLLIN)
 
     # --------------------------------------------------------------------------
     #  Handling of messages
@@ -161,6 +164,18 @@ class Server(Program):
         self.backend.send(unsubscribe_msg)
         self.state.remove_subscriber(client_id, topic)
 
+    def handle_sub_sync(self) -> None:
+        message = MessageParser.decode(self.sync_sub.recv_multipart())
+        client_id = int(message[0])
+        topic = message[1]
+
+        if self.state.is_sub_waiting(client_id, topic):
+            Logger.sync(client_id, topic, True)
+            self.sync_sub.send_multipart(MessageParser.encode([client_id, "WAITING"]))
+        else:
+            Logger.sync(client_id, topic, False)
+            self.sync_sub.send_multipart(MessageParser.encode([client_id, "NOT WAITING"]))
+
     def handle_dealer(self) -> None:
         message = MessageParser.decode(self.router.recv_multipart())
 
@@ -200,6 +215,10 @@ class Server(Program):
                 # Receives message from subscribers
                 if socks.get(self.router) == zmq.POLLIN:
                     self.handle_dealer()
+
+                # Receives synchronization requests from subscribers
+                if socks.get(self.sync_sub) == zmq.POLLIN:
+                    self.handle_sub_sync()
 
                 # Saves the state
                 if self.msg_counter == 0:

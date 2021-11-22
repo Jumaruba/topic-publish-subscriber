@@ -44,6 +44,13 @@ class Logger:
         Logger.reset_colors()
 
     @staticmethod
+    def sync(client_id: int, topic: str, is_waiting: bool):
+        client_state = "yes" if is_waiting else "no"
+        Logger.add_color(Colors.PURPLE)
+        print(f"[SYNC] uid({client_id}) - t('{topic}') - waiting({client_state})")
+        Logger.reset_colors()
+
+    @staticmethod
     def publication(topic: str, message_id: int, message: str):
         if len(message) > 50:
             message = message[:50] + "..."
