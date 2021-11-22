@@ -28,10 +28,9 @@ class Publisher(Client):
     # Initialization of publisher
     # --------------------------------------------------------------------------
 
-    def __init__(self, messages_json: str) -> None:
-        super().__init__()
-        # TODO: change to receive id from the input
-        self.id = str(2)  # str(random.randint(0, 8000))
+    def __init__(self, messages_json: str, client_id: str) -> None:
+        super().__init__(client_id)
+
         self.put_topic_dict = {}
         self.get_state()
 
@@ -44,8 +43,8 @@ class Publisher(Client):
         self.publisher = self.create_socket(zmq.PUB, SocketCreationFunction.CONNECT, 'localhost:5556')
         self.fault_server = self.create_socket(zmq.SUB, SocketCreationFunction.CONNECT, 'localhost:5552')
         # Subscribe to receive fault messages from server.
-        self.fault_server.setsockopt(zmq.IDENTITY, self.id.encode('utf-8'))
-        self.fault_server.setsockopt(zmq.SUBSCRIBE, self.id.encode('utf-8'))
+        self.fault_server.setsockopt_string(zmq.IDENTITY, self.id)
+        self.fault_server.setsockopt_string(zmq.SUBSCRIBE, self.id)
 
     def get_messages(self, messages_json: str):
         f = open(messages_json + ".json")
