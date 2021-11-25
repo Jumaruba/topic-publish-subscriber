@@ -26,7 +26,7 @@ class Server(Program):
     backend: zmq.Socket
     router: zmq.Socket
     state: ServerState
-    ack_server: zmq.Socket 
+    fault_pub: zmq.Socket 
 
 
     # --------------------------------------------------------------------------
@@ -44,7 +44,9 @@ class Server(Program):
         current_data_path = os.path.abspath(os.getcwd())   
         persistent_data_path = f"/data/server_status.pkl" 
         data_path = current_data_path + persistent_data_path
-        self.state = ServerState.read_state(data_path)
+        self.state = ServerState.read_state(data_path)  
+
+
 
     def create_poller(self) -> None:
         self.poller = zmq.Poller()
@@ -57,7 +59,7 @@ class Server(Program):
 
         self.router = self.create_socket(
             zmq.ROUTER, SocketCreationFunction.BIND, '*:5554')
-        self.ack_server = self.create_socket(
+        self.fault_pub = self.create_socket(
             zmq.PUB, SocketCreationFunction.BIND, '*:5552')
 
     # --------------------------------------------------------------------------
@@ -83,22 +85,50 @@ class Server(Program):
 
     def handle_publication(self) -> None:
         """
-        Reads the message from the backend socket, creates a new id for it,
-        sends it to the subscribers and adds the new message to the data
-        structures
+        Reads the message from the backend socket, creates a new id for it, 
+        and adds the new message to the data structures
         """
         raw_message = self.backend.recv_multipart()
         Logger.new_message(raw_message)
 
         topic, pub_id, message, pub_msg_id = MessageParser.decode(raw_message)
-        # Send the ACK to the server
-        # TODO - save original message id and send ack to publisher
-        self.ack_server.send_multipart(MessageParser.encode([pub_id, pub_msg_id, topic])) 
 
-        message_id = self.state.add_message(topic, message)
-        Logger.publication(topic, message_id, message)
+        # Handle missing/duplicate publications 
+        fault_message = self.handle_pub_fault(int(pub_id), topic, int(pub_msg_id))  
+
+        if fault_message:
+            message_id = self.state.add_message(topic, message)
+            Logger.publication(topic, message_id, message)
 
         self.update_pending_clients(topic)
+
+    def handle_pub_fault(self, pub_id: int, topic: str, pub_msg_id: int) -> bool:  
+        """
+        Return true if not duplicated (if the message is to be resend to the subscriber).
+        Send Fault Message to publishers if a message is missing.
+        """
+        pub_topic_state = self.state.get_publish_dict(pub_id, topic)
+
+        # Check if the message is in the waiting list and remove if in waiting list.
+        if pub_topic_state.is_waiting(pub_msg_id):
+            # Remove from waiting list
+            pub_topic_state.remove_waiting(pub_msg_id)
+            return True
+        # Checks if duplicated.
+        elif pub_msg_id <= pub_topic_state.last_msg: 
+            return False
+
+        if pub_msg_id - pub_topic_state.last_msg > 1:
+            for lost_msg_id in range(pub_topic_state.last_msg + 1, pub_msg_id):
+                # Add to waiting set 
+                pub_topic_state.add_waiting(lost_msg_id)
+                # Send fo message to the publisher.
+                self.fault_pub.send_multipart(MessageParser.encode([pub_id, topic, lost_msg_id])) 
+                
+        # Update last message received from the publisher on the topic
+        pub_topic_state.last_msg = pub_msg_id
+        return True
+
 
     def handle_dealer(self) -> None:
         message = MessageParser.decode(self.router.recv_multipart())
@@ -124,7 +154,7 @@ class Server(Program):
             self.backend.send(unsubscribe_msg)
             self.state.remove_subscriber(identity, topic)
 
-    def handle_get(self, client_id: int, topic: str, msg_id: str) -> None:
+    def handle_get(self, client_id: int, topic: str, msg_id: int) -> None:
         Logger.request(client_id, topic)
 
         # Verify if client exists and is subscribed
@@ -140,7 +170,6 @@ class Server(Program):
             Logger.warning(f"    Added {client_id} to the waiting list for '{topic}'")
             return
 
-        # Send to client
         self.router.send_multipart(MessageParser.encode(message))
         Logger.success(f"    The message {int(message[2])} was sent to the subscriber")
 
@@ -162,23 +191,30 @@ class Server(Program):
         acknowledgements and error treatment
         """  
         # When this number achieves to 0, it saves the state in the file. It's decremented for each ACK.
-        self.msg_counter = self.save_frequency 
-        while True:
-            socks = dict(self.poller.poll())
+        self.msg_counter = self.save_frequency  
+        while True: 
+            try: 
+                socks = dict(self.poller.poll())
 
-            # Receives content from publishers
-            if socks.get(self.backend) == zmq.POLLIN:
-                self.handle_publication()
+                # Receives content from publishers
+                if socks.get(self.backend) == zmq.POLLIN:
+                    self.handle_publication()
 
-            # Receives message from subscribers
-            if socks.get(self.router) == zmq.POLLIN:
-                self.handle_dealer()
-                #print(self.state)
+                # Receives message from subscribers
+                if socks.get(self.router) == zmq.POLLIN:
+                    self.handle_dealer()
+                    #print(self.state)
 
-            # Saves the state
-            if self.msg_counter == 0:
-                self.msg_counter = self.save_frequency
-                t = threading.Thread(target=self.state.save_state)
-                t.start()
+                # Saves the state
+                if self.msg_counter == 0:
+                    self.msg_counter = self.save_frequency
+                    self.state.save_state()
+                    # TODO: use locks and save state asynchronously
+                    #t = threading.Thread(target=self.state.save_state)
+                    #t.start()
 
-            self.msg_counter -= 1   
+                self.msg_counter -= 1    
+            except KeyboardInterrupt:
+                self.state.save_state()
+                Logger.err("Keyboard interrupt")
+                exit()

@@ -32,7 +32,6 @@ class Subscriber(Client):
     def __init__(self, topics_json: str, client_id: int):
         super().__init__()
 
-        self.ack_count = 0
         # State
         current_data_path = os.path.abspath(os.getcwd())   
         persistent_data_path = f"/data/client_status_{client_id}.pkl" 
@@ -99,14 +98,16 @@ class Subscriber(Client):
         [topic, msg_id, content] = MessageParser.decode(
             self.dealer.recv_multipart())
 
+        # Duplicated message [extreme case]
+        if int(msg_id) < self.state.get_next_message(topic):
+            return 
+
         Logger.topic_message(topic, msg_id, content)
         self.state.add_message(topic, int(msg_id))
         self.state.save_state()
 
-        if self.ack_count != 2:
-            self.dealer.send_multipart(
-                MessageParser.encode(['ACK', topic, msg_id]))
-        self.ack_count+=1
+        self.dealer.send_multipart(
+            MessageParser.encode(['ACK', topic, msg_id]))
 
     # --------------------------------------------------------------------------
     # Main function of subscriber
@@ -127,3 +128,4 @@ class Subscriber(Client):
             self.handle_msg()
 
         self.unsubscribe_topics()
+        self.state.delete()

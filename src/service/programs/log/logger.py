@@ -70,6 +70,12 @@ class Logger:
         print(message)
         Logger.reset_colors()
 
+    @staticmethod
+    def err(message):
+        Logger.add_color(Colors.RED)
+        print(f"[ERR] {message}")
+        Logger.reset_colors()
+
     # --------------------------------------------------------------------------
     # Subscriber logs
     # --------------------------------------------------------------------------

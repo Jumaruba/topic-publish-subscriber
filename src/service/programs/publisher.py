@@ -1,3 +1,4 @@
+import pickle
 import random
 import time
 import json
@@ -10,6 +11,8 @@ from .log.logger import Logger
 from .client import Client
 from .program import SocketCreationFunction
 from .message.message_parser import MessageParser
+import os 
+
 
 class Publisher(Client):
 
@@ -18,12 +21,13 @@ class Publisher(Client):
     # --------------------------------------------------------------------------
 
     publisher: zmq.Socket
-    messages: list              # list of messages to send
-    ack_topic_dict: dict         # topic_dict[topic] = message_id  # confirmed puts
-    last_put: str               # topic published in the last put call
-    put_topic_dict: dict         # last_topic_msg[topic] = message_id   # last message sent from each topic
-    ack_server: zmq.Socket      
-    
+    messages: dict                  # List of messages to send
+    fault_server: zmq.Socket        # Error messages that comes from the server
+    put_topic_dict: dict            # Last_topic_msg[topic] = message_id   # last message sent from each topic
+    topic_names: list               # Possible topics
+    n_topics: int                   # Number of topics
+
+
     # --------------------------------------------------------------------------
     # Initialization of publisher
     # --------------------------------------------------------------------------
@@ -31,55 +35,55 @@ class Publisher(Client):
     def __init__(self, messages_json: str) -> None:
         super().__init__() 
         # TODO: change to receive id from the input
-        self.id = str(random.randint(0, 8000)).encode('utf-8')
-        self.ack_topic_dict = {}
-        self.put_topic_dict = {}
-        self.last_put = None  
+        self.id = str(2) #str(random.randint(0, 8000))
+        self.put_topic_dict = {} 
+        self.get_state()
 
         self.init_sockets()
-        self.get_messages(messages_json)
-        self.n_topics = len(self.messages)
+        self.get_messages(messages_json) 
+        self.topic_names = list(self.messages.keys())
+        self.n_topics = len(self.topic_names)
+
 
     def init_sockets(self) -> None:
         self.publisher = self.create_socket(zmq.PUB, SocketCreationFunction.CONNECT, 'localhost:5556') 
-        self.ack_server = self.create_socket(zmq.SUB, SocketCreationFunction.CONNECT, 'localhost:5552') 
-        self.ack_server.setsockopt(zmq.IDENTITY, self.id) # Subscribe to receive acks. 
-        self.ack_server.setsockopt(zmq.SUBSCRIBE, self.id)
+        self.fault_server = self.create_socket(zmq.SUB, SocketCreationFunction.CONNECT, 'localhost:5552') 
+        self.fault_server.setsockopt(zmq.IDENTITY, self.id.encode('utf-8')) # Subscribe to receive fault messages from server. 
+        self.fault_server.setsockopt(zmq.SUBSCRIBE, self.id.encode('utf-8'))
+
 
     def get_messages(self, messages_json: str):
         f = open(messages_json + ".json")
-        self.messages = json.load(f).get("topics")
+        self.messages = json.load(f)
         f.close()
 
-    def put(self, topic: str, msg_id: int, content: str) -> None: 
-        self.last_put = topic
+
+    def put(self, topic: str, msg_id: int, content: str) -> None:   
         self.publisher.send_multipart(MessageParser.encode([topic, self.id, content, msg_id]))
         Logger.put_message(self.id, topic, msg_id, content)
     
-
-    def handle_ack(self):
-        """
-        Updates state if ACK is received
-        """
+    def handle_fault(self):
         try:
-            message = self.ack_server.recv_multipart(flags=zmq.NOBLOCK)
-            msg_id, topic = MessageParser.decode(message)
-            self.topic_dict[topic] = int(msg_id)
-            self.last_put = None
-            Logger.acknowledgement_pub(topic, msg_id)
+            message = self.fault_server.recv_multipart(flags=zmq.NOBLOCK)
         except zmq.Again as e:
             return
 
+        Logger.new_message(message)
+        _, topic, msg_id = MessageParser.decode(message) 
+        content = self.messages[topic][int(msg_id) % len(self.messages[topic])]        
+        self.put(topic, msg_id, content)
+
+
     def publication(self):
         # Get random topic
-        topic = self.messages[random.randint(0, self.n_topics-1)]
+        topic = self.topic_names[random.randint(0, self.n_topics-1)]
         
         # Get id of the next message message to send
-        msg_id = self.get_next_message(topic["name"])
-        content = topic["messages"][msg_id % len(topic["messages"])]
+        msg_id = self.get_next_message(topic)
+        content = self.messages[topic][msg_id % len(self.messages[topic])]
 
-        self.put_topic_dict[topic["name"]] = msg_id
-        self.put(topic["name"] , msg_id, str(content))
+        self.put_topic_dict[topic] = msg_id
+        self.put(topic, msg_id, str(content))
 
     # -------------------------------------------------------------------------
     # State Functions
@@ -90,19 +94,40 @@ class Publisher(Client):
             return 0
         return self.put_topic_dict[topic] + 1
     
+
+    def save_state(self) -> None:
+        current_path = os.path.dirname(__file__) + "/../../data/"
+        data_path = os.path.join(current_path, f"publisher_{self.id}.pkl")
+        f = open(data_path, "wb+")
+        pickle.dump(self.put_topic_dict, f)
+        f.close()
+
+
+    def get_state(self) -> None:
+        current_path = os.path.dirname(__file__) + "/../../data/"
+        data_path = os.path.join(current_path, f"publisher_{self.id}.pkl")
+        if os.path.exists(data_path):
+            f = open(data_path, "rb") 
+            self.put_topic_dict = pickle.load(f)
+            f.close() 
+
+
     # --------------------------------------------------------------------------
     # Main function of publisher
     # --------------------------------------------------------------------------
 
     def run(self) -> None:
 
-        ## TODO check if socket is connected before starting to send messages
+        # TODO check if socket is connected before starting to send messages
+        # TODO save the state in memory 
 
         while True:
             # Send publication
             self.publication()
 
-            # Receive ACKS
-            self.handle_ack()
+            # Handles lost messages from the server.
+            self.handle_fault()
 
             time.sleep(2)
+            # TODO: save with some frequency
+            self.save_state()
