@@ -17,7 +17,6 @@ class Subscriber(Client):
     # --------------------------------------------------------------------------
 
     data_path: str
-    client_id: int
     topics: list
     state: SubscriberState
 
@@ -25,16 +24,15 @@ class Subscriber(Client):
     # Initialization of subscriber
     # --------------------------------------------------------------------------
 
-    def __init__(self, topics_json: str, client_id: int):
-        super().__init__()
+    def __init__(self, topics_json: str, client_id: str):
+        super().__init__(client_id)
 
         # State
         current_data_path = os.path.abspath(os.getcwd())
-        persistent_data_path = f"/data/subscriber_status_{client_id}.pkl"
+        persistent_data_path = f"/data/subscriber_status_{self.id}.pkl"
         data_path = current_data_path + persistent_data_path
         self.state = SubscriberState.read_state(data_path, topics_json)
 
-        self.client_id = client_id
         self.create_sockets()
 
         # Subscribe if the subscriber is new, handle crash otherwise
@@ -46,7 +44,7 @@ class Subscriber(Client):
 
     def create_sockets(self) -> None:
         self.dealer = self.context.socket(zmq.DEALER)
-        self.dealer.setsockopt_string(zmq.IDENTITY, self.client_id)
+        self.dealer.setsockopt_string(zmq.IDENTITY, self.id)
         self.dealer.connect("tcp://localhost:5554")
 
     # --------------------------------------------------------------------------
@@ -79,7 +77,7 @@ class Subscriber(Client):
         self.state.set_last_get(topic)
         msg_id = self.state.get_next_message(topic)
         self.dealer.send_multipart(MessageParser.encode(['GET', topic, msg_id]))
-        Logger.get(self.client_id, topic)
+        Logger.get(self.id, topic)
 
     def handle_crash(self):
         """ Send ACK to the last topic requested with a GET before crashing """
