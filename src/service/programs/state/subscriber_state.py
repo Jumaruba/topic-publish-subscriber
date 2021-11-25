@@ -41,7 +41,11 @@ class SubscriberState(State):
     def get_last_ack(self):
         if self.last_get is None:
             return None
-        msg_id = self.messages_received[self.last_get]
+
+        msg_id = self.messages_received.get(self.last_get)
+        if msg_id is None:
+            return None
+
         return ["ACK", self.last_get, msg_id]
 
     def set_last_get(self, topic: str):

@@ -108,15 +108,20 @@ class Publisher(Client):
     def run(self) -> None:
 
         # TODO check if socket is connected before starting to send messages
-        # TODO save the state in memory 
 
         while True:
-            # Send publication
-            self.publication()
+            try:
+                # Send publication
+                self.publication()
 
-            # Handles lost messages from the server.
-            self.handle_fault()
+                # Handles lost messages from the server.
+                self.handle_fault()
 
-            time.sleep(2)
-            # TODO: save with some frequency
-            self.save_state()
+                # TODO: delete this?
+                time.sleep(2)
+                self.save_state()
+
+            except KeyboardInterrupt:
+                self.save_state()
+                Logger.err("Keyboard interrupt")
+                exit()

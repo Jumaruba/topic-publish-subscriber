@@ -79,6 +79,14 @@ class ServerState(State):
     def get_waiting_list(self, topic: str) -> list:
         return self.pending_clients[topic]
 
+    def is_sub_waiting(self, client_id: int, topic: str) -> bool:
+        pending = self.pending_clients.get(topic)
+
+        if pending is None:
+            return False
+        
+        return client_id in pending
+
     def is_unsubscribed_topic(self, topic: str) -> bool:
         for client in self.client_dict.keys():
             client_topics = self.client_dict[client].keys()

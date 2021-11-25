@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-
 import os
 import zmq
 
@@ -41,11 +40,15 @@ class Subscriber(Client):
             self.state.save_state()
         else:
             self.handle_crash()
-
+    
     def create_sockets(self) -> None:
         self.dealer = self.context.socket(zmq.DEALER)
         self.dealer.setsockopt_string(zmq.IDENTITY, self.id)
         self.dealer.connect("tcp://localhost:5554")
+        
+        self.sync = self.context.socket(zmq.DEALER)
+        self.sync.setsockopt_string(zmq.IDENTITY, self.id)
+        self.sync.connect("tcp://localhost:5553")
 
     # --------------------------------------------------------------------------
     # Subscrition functions
@@ -80,10 +83,38 @@ class Subscriber(Client):
         Logger.get(self.id, topic)
 
     def handle_crash(self):
-        """ Send ACK to the last topic requested with a GET before crashing """
-        message = self.state.get_last_ack()
-        if message is not None:
-            self.dealer.send_multipart(MessageParser.encode(message))
+        """ Send ACK to the last topic requested with a GET before crashing.
+        Send SYNC message to know if he crashed while waiting for an answer to GET.
+        """
+        # Send last ACK
+        ack_message = self.state.get_last_ack()
+        if ack_message is not None:
+            self.dealer.send_multipart(MessageParser.encode(ack_message))
+
+        # SYNC with the server
+        self.sync_with_server()
+
+    def sync_with_server(self):
+        if self.state.last_get is None:
+            return
+
+        self.sync.send(self.state.last_get.encode("utf-8"))
+        answer = self.sync.recv().decode("utf-8")
+        
+        if answer == "WAITING":
+            # Wait for answer to GET
+            self.handle_msg()
+            return
+        elif answer == "NOT WAITING":
+            # Check if a GET response is in the queue
+            poller = zmq.Poller()
+            poller.register(self.dealer, zmq.POLLIN)
+            socks = dict(poller.poll(250))
+
+            for i in range(3):
+                if socks.get(self.sync) == zmq.POLLIN:
+                    self.handle_msg()
+                    return
 
     def handle_msg(self) -> None:
         """ This function receive a message of a topic and sends the ACK. """
@@ -108,17 +139,23 @@ class Subscriber(Client):
 
     def run(self):
         # TODO - if 'limit' arg is specified, unsubscribe after sending 'limit' GETs, otherwise use and infinite loop
-
         for i in range(5):
-            # Get random subscribed topic
-            topic_idx = random.randint(0, len(self.state.topics) - 1)
-            topic = self.state.topics[topic_idx]
+            try:
+                # Get random subscribed topic
+                topic_idx = random.randint(0, len(self.state.topics) - 1)
+                topic = self.state.topics[topic_idx]
 
-            # Get message from a topic
-            self.get(topic)
+                # Get message from a topic
+                self.get(topic)
 
-            # Send ACK
-            self.handle_msg()
+                # Send ACK
+                self.handle_msg()
+
+            # TODO: find out why it is not working
+            except KeyboardInterrupt:
+                self.state.save_state()
+                Logger.err("Keyboard interrupt")
+                exit()
 
         self.unsubscribe_topics()
         self.state.delete()
