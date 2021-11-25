@@ -1,14 +1,14 @@
 class PubTopicState:
-    
-    def __init__(self): 
+
+    def __init__(self):
         self.last_msg = -1
         self.waiting_messages = []
 
-    def remove_waiting(self, msg_id: int): 
+    def remove_waiting(self, msg_id: int):
         self.waiting_messages.remove(msg_id)
 
     def add_waiting(self, msg_id: int):
-        self.waiting_messages.append(msg_id) 
+        self.waiting_messages.append(msg_id)
 
     def is_waiting(self, msg_id: int):
         if msg_id in self.waiting_messages:

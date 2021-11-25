@@ -1,21 +1,17 @@
 from __future__ import annotations
 
+import random
+
 import os
 import zmq
-import random
-from time import sleep
-import json
-
-from .log.logger import Logger
-from .message.message_parser import MessageParser
 
 from .client import Client
+from .log.logger import Logger
+from .message.message_parser import MessageParser
 from .state.subscriber_state import SubscriberState
-from .program import SocketCreationFunction
 
 
 class Subscriber(Client):
-
     # --------------------------------------------------------------------------
     # Attributes
     # --------------------------------------------------------------------------
@@ -33,8 +29,8 @@ class Subscriber(Client):
         super().__init__()
 
         # State
-        current_data_path = os.path.abspath(os.getcwd())   
-        persistent_data_path = f"/data/client_status_{client_id}.pkl" 
+        current_data_path = os.path.abspath(os.getcwd())
+        persistent_data_path = f"/data/subscriber_status_{client_id}.pkl"
         data_path = current_data_path + persistent_data_path
         self.state = SubscriberState.read_state(data_path, topics_json)
 
@@ -66,7 +62,7 @@ class Subscriber(Client):
         for topic in self.state.topics:
             self.unsubscribe(topic)
             # NOTE if we are doing unsubsribe we should delete the state
-            #self.state.topics.remove(topic)
+            # self.state.topics.remove(topic)
             Logger.unsubscribe(topic)
 
     def subscribe(self, topic: str) -> None:
@@ -74,7 +70,6 @@ class Subscriber(Client):
 
     def unsubscribe(self, topic: str) -> None:
         self.dealer.send_multipart(MessageParser.encode(["UNSUB", topic]))
-
 
     # --------------------------------------------------------------------------
     # Message handling functions
@@ -100,7 +95,7 @@ class Subscriber(Client):
 
         # Duplicated message [extreme case]
         if int(msg_id) < self.state.get_next_message(topic):
-            return 
+            return
 
         Logger.topic_message(topic, msg_id, content)
         self.state.add_message(topic, int(msg_id))
@@ -118,7 +113,7 @@ class Subscriber(Client):
 
         for i in range(5):
             # Get random subscribed topic
-            topic_idx = random.randint(0, len(self.state.topics)-1)
+            topic_idx = random.randint(0, len(self.state.topics) - 1)
             topic = self.state.topics[topic_idx]
 
             # Get message from a topic

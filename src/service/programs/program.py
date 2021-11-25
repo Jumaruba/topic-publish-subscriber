@@ -5,7 +5,9 @@ from enum import Enum
 
 import zmq
 from zmq.backend import Socket
+
 from .excpt.create_socket import CreateSocket
+
 
 class SocketCreationFunction(Enum):
     CONNECT = 0

@@ -1,12 +1,14 @@
 import sys
 
+
 class Colors:
     RESET_STYLE = '\033[0;0m'
     CYAN = '\033[0;36m'
-    YELLOW = '\033[1;33m' 
+    YELLOW = '\033[1;33m'
     GREEN = '\033[1;32m'
     RED = '\033[0;31m'
     PURPLE = '\033[0;35m'
+
 
 class Logger:
 
@@ -15,8 +17,9 @@ class Logger:
         sys.stdout.write(color)
 
     @staticmethod
-    def reset_colors() -> None: 
+    def reset_colors() -> None:
         sys.stdout.write('\033[0;0m')
+
     # --------------------------------------------------------------------------
     # Server logs
     # --------------------------------------------------------------------------
@@ -37,11 +40,13 @@ class Logger:
     @staticmethod
     def unsubscription(client_id: int, topic: str) -> None:
         Logger.add_color(Colors.CYAN)
-        print(f"[UNSUB] uid({client_id}) - t('{topic}')") 
+        print(f"[UNSUB] uid({client_id}) - t('{topic}')")
         Logger.reset_colors()
 
     @staticmethod
     def publication(topic: str, message_id: int, message: str):
+        if len(message) > 50:
+            message = message[:50] + "..."
         print(f"[PUT] t('{topic}') - msgid({message_id}) - msg('{message}')")
 
     @staticmethod
@@ -49,7 +54,7 @@ class Logger:
         print(f"[GET] uid({client_id}) - t('{topic}')")
 
     @staticmethod
-    def acknowledgement(client_id: int, topic: str, message_id: int): 
+    def acknowledgement(client_id: int, topic: str, message_id: int):
         Logger.add_color(Colors.GREEN)
         print(f"[ACK] uid({client_id}) - t('{topic}') - msgid({message_id})")
         Logger.reset_colors()
@@ -91,7 +96,7 @@ class Logger:
         print(f"[GET] uid({identity}) - t('{topic}') ")
 
     @staticmethod
-    def subscribe(topic: str) -> None: 
+    def subscribe(topic: str) -> None:
         Logger.add_color(Colors.CYAN)
         print(f"[SUB] t'({topic}')")
         Logger.reset_colors()
@@ -102,7 +107,6 @@ class Logger:
         print(f"[UNSUB] t('{topic}')")
         Logger.reset_colors()
 
-
     # --------------------------------------------------------------------------
     # Publisher logs
     # --------------------------------------------------------------------------
@@ -112,7 +116,7 @@ class Logger:
         print(f"[SENT] id({pub_id}) - t('{topic}') - msgid({msg_id}) - msg('{content}')")
 
     @staticmethod
-    def acknowledgement_pub(topic: str, message_id: int): 
+    def acknowledgement_pub(topic: str, message_id: int):
         Logger.add_color(Colors.GREEN)
         print(f"[ACK] t('{topic}') - msgid({message_id})")
         Logger.reset_colors()
