@@ -29,5 +29,5 @@ No compilation is needed for Python.
 To run the project the only necessary command is:
 
 ```bash
-python -m service <subscriber|publisher>
+python -m service [server | subscriber <messages_filename> <id>| publisher <topics_filename> <id>]
 ```
