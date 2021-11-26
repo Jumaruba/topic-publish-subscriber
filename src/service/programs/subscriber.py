@@ -138,7 +138,7 @@ class Subscriber(Client):
     # --------------------------------------------------------------------------
 
     def run(self):
-        # TODO - if 'limit' arg is specified, unsubscribe after sending 'limit' GETs, otherwise use and infinite loop
+        
         for i in range(5):
             try:
                 # Get random subscribed topic
@@ -151,7 +151,6 @@ class Subscriber(Client):
                 # Send ACK
                 self.handle_msg()
 
-            # TODO: find out why it is not working
             except KeyboardInterrupt:
                 self.state.save_state()
                 Logger.err("Keyboard interrupt")

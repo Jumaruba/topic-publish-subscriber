@@ -137,7 +137,6 @@ class Server(Program):
 
         # Verify if client exists and is subscribed
         if self.state.check_client_subscription(client_id, topic) is None:
-            # TODO - Send error message?
             return
         # Gets and verifies message
         message = self.state.message_for_client(client_id, topic, msg_id)
@@ -224,9 +223,6 @@ class Server(Program):
                 if self.msg_counter == 0:
                     self.msg_counter = self.save_frequency
                     self.state.save_state()
-                    # TODO: use locks and save state asynchronously
-                    # t = threading.Thread(target=self.state.save_state)
-                    # t.start()
 
                 self.msg_counter -= 1
             except KeyboardInterrupt:

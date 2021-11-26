@@ -107,8 +107,6 @@ class Publisher(Client):
 
     def run(self) -> None:
 
-        # TODO check if socket is connected before starting to send messages
-
         while True:
             try:
                 # Send publication
@@ -117,7 +115,6 @@ class Publisher(Client):
                 # Handles lost messages from the server.
                 self.handle_fault()
 
-                # TODO: delete this?
                 time.sleep(2)
                 self.save_state()
 
