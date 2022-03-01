@@ -1,6 +1,6 @@
 # SDLE Project
 
-SDLE Project for group T3G14.
+SDLE Project for group T3G14. For more information about the project, check the [report](https://github.com/Jumaruba/topic-publish-subscriber/blob/master/doc/report.pdf)
 
 **Final grade**: 20.0
 
